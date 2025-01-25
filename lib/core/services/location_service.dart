@@ -41,12 +41,12 @@ class LocationService {
     return Geolocator.getPositionStream();
   }
 
-  static Future<double> calculateDistance(
+  static double calculateDistance(
     double startLat,
     double startLng,
     double endLat,
     double endLng,
-  ) async {
+  ) {
     try {
       return Geolocator.distanceBetween(
             startLat,
