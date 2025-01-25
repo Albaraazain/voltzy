@@ -6,9 +6,9 @@ class JobDetailsScreen extends StatelessWidget {
   final Job job;
 
   const JobDetailsScreen({
-    Key? key,
+    super.key,
     required this.job,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
