@@ -12,7 +12,7 @@ class ProfessionalJobCard extends StatelessWidget {
   final VoidCallback? onCancel;
 
   const ProfessionalJobCard({
-    Key? key,
+    super.key,
     required this.job,
     this.onTap,
     this.onAccept,
@@ -20,7 +20,7 @@ class ProfessionalJobCard extends StatelessWidget {
     this.onStart,
     this.onComplete,
     this.onCancel,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
