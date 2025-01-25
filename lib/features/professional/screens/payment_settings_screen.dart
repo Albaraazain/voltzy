@@ -74,11 +74,11 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
     try {
       final paymentInfo = PaymentInfo(
         id: const Uuid().v4(),
-        userId: context.read<AuthProvider>().userId!,
-        accountName: _accountNameController.text,
-        accountNumber: _accountNumberController.text,
-        bankName: _bankNameController.text,
-        routingNumber: _routingNumberController.text,
+        userId: context.read<AuthProvider>().userId,
+        accountName: _accountNameController.text.trim(),
+        accountNumber: _accountNumberController.text.trim(),
+        bankName: _bankNameController.text.trim(),
+        routingNumber: _routingNumberController.text.trim(),
         accountType: _selectedAccountType,
         isVerified: false,
         createdAt: DateTime.now(),
