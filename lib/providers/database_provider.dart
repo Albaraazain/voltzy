@@ -17,6 +17,8 @@ import '../models/schedule_slot_model.dart' as schedule;
 import '../models/category_model.dart' as category_model;
 import '../core/config/supabase_config.dart';
 import '../core/utils/api_response.dart';
+import '../models/service_category_model.dart';
+import '../features/homeowner/models/service.dart';
 
 // Import the USE_DEVELOPMENT_ENV constant
 
@@ -1869,19 +1871,20 @@ class DatabaseProvider with ChangeNotifier {
     }
   }
 
-  Future<List<Service>> getServicesByCategory(String categoryId) async {
+  Future<List<CategoryService>> getServicesByCategory(String categoryId) async {
     try {
       final response = await _client
           .from('services')
           .select()
-          .eq('category_id', categoryId)
+          .filter('category_id', 'eq', categoryId)
+          .filter('deleted_at', 'is', null)
           .order('name');
 
       return (response as List<dynamic>)
-          .map((json) => Service.fromJson(json))
+          .map((json) => CategoryService.fromJson(json as Map<String, dynamic>))
           .toList();
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to get services by category', e, stackTrace);
+    } catch (e) {
+      LoggerService.error('Failed to get services by category', e);
       rethrow;
     }
   }
@@ -1920,12 +1923,26 @@ class DatabaseProvider with ChangeNotifier {
       final response =
           await _client.from('services').select().eq('id', id).single();
 
-      if (response != null) {
-        return ApiResponse.success(Service.fromJson(response));
-      }
-      throw Exception('Service not found');
+      return ApiResponse.success(Service.fromJson(response));
     } catch (e) {
       return ApiResponse.error(e.toString());
+    }
+  }
+
+  Future<List<ServiceCategory>> loadServiceCategories() async {
+    try {
+      final response = await _client
+          .from('service_categories')
+          .select()
+          .filter('deleted_at', 'is', null)
+          .order('name');
+
+      return (response as List)
+          .map((json) => ServiceCategory.fromJson(json))
+          .toList();
+    } catch (e) {
+      LoggerService.error('Error loading service categories', e);
+      rethrow;
     }
   }
 }
