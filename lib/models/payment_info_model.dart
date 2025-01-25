@@ -2,47 +2,51 @@ import 'package:flutter/foundation.dart';
 
 @immutable
 class PaymentInfo {
-  final String id;
-  final String userId;
-  final String accountName;
-  final String accountNumber;
-  final String bankName;
-  final String routingNumber;
-  final String accountType;
+  final String? id;
+  final String? userId;
+  final String? accountName;
+  final String? accountNumber;
+  final String? bankName;
+  final String? routingNumber;
+  final String? accountType;
   final bool isVerified;
   final DateTime? lastVerified;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const PaymentInfo({
-    required this.id,
-    required this.userId,
-    required this.accountName,
-    required this.accountNumber,
-    required this.bankName,
-    required this.routingNumber,
-    required this.accountType,
-    required this.isVerified,
+    this.id,
+    this.userId,
+    this.accountName,
+    this.accountNumber,
+    this.bankName,
+    this.routingNumber,
+    this.accountType,
+    this.isVerified = false,
     this.lastVerified,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory PaymentInfo.fromJson(Map<String, dynamic> json) {
     return PaymentInfo(
-      id: json['id'] as String,
-      userId: json['user_id'] as String,
-      accountName: json['account_name'] as String,
-      accountNumber: json['account_number'] as String,
-      bankName: json['bank_name'] as String,
-      routingNumber: json['routing_number'] as String,
-      accountType: json['account_type'] as String,
-      isVerified: json['is_verified'] as bool,
+      id: json['id'] as String?,
+      userId: json['user_id'] as String?,
+      accountName: json['account_name'] as String?,
+      accountNumber: json['account_number'] as String?,
+      bankName: json['bank_name'] as String?,
+      routingNumber: json['routing_number'] as String?,
+      accountType: json['account_type'] as String?,
+      isVerified: json['is_verified'] as bool? ?? false,
       lastVerified: json['last_verified'] != null
           ? DateTime.parse(json['last_verified'] as String)
           : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
     );
   }
 
@@ -57,8 +61,8 @@ class PaymentInfo {
       'account_type': accountType,
       'is_verified': isVerified,
       'last_verified': lastVerified?.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
     };
   }
 
