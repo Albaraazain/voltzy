@@ -1,359 +1,195 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../../core/constants/colors.dart';
-import '../../../core/constants/text_styles.dart';
-import '../../../core/widgets/map_view.dart';
-import '../../../models/location_model.dart';
-import '../../../models/service_model.dart';
+import 'package:provider/provider.dart';
 import '../../../providers/database_provider.dart';
-import '../../../core/services/location_service.dart';
 import '../../../core/services/logger_service.dart';
-import '../../../models/job_model.dart';
-
-enum SearchState {
-  searching,
-  requesting,
-  success,
-  failed,
-}
+import '../../../core/widgets/loading_indicator.dart';
+import '../../../models/service_model.dart';
+import '../widgets/broadcast_request_progress_card.dart';
 
 class BroadcastRequestMapScreen extends StatefulWidget {
   final Service service;
-  final int hours;
-  final String? additionalNotes;
-  final double maxBudgetPerHour;
-  final DateTime scheduledDate;
-  final TimeOfDay scheduledTime;
+  final double initialLat;
+  final double initialLng;
 
   const BroadcastRequestMapScreen({
-    super.key,
+    Key? key,
     required this.service,
-    required this.hours,
-    required this.maxBudgetPerHour,
-    required this.scheduledDate,
-    required this.scheduledTime,
-    this.additionalNotes,
-  });
+    required this.initialLat,
+    required this.initialLng,
+  }) : super(key: key);
 
   @override
   State<BroadcastRequestMapScreen> createState() =>
       _BroadcastRequestMapScreenState();
 }
 
-class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen>
-    with SingleTickerProviderStateMixin {
-  Set<Marker> _markers = {};
-  LocationModel? _currentLocation;
+class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
+  GoogleMapController? _mapController;
   bool _isLoading = true;
-  SearchState _searchState = SearchState.searching;
-  late AnimationController _slideController;
-  late Animation<Offset> _slideAnimation;
-  String? _jobId;
-
-  final _defaultLocation = const LocationModel(
-    latitude: 41.0082, // Istanbul's coordinates
-    longitude: 28.9784,
-  );
+  int _nearbyProfessionalsCount = 0;
+  double _selectedRadius = 5.0; // Default 5km radius
+  late LatLng _selectedLocation;
+  bool _isRequestingJob = false;
 
   @override
   void initState() {
     super.initState();
-    LoggerService.debug('Initializing BroadcastRequestMapScreen');
-    _initializeMap();
-    _setupAnimations();
-    _startSearching();
+    _selectedLocation = LatLng(widget.initialLat, widget.initialLng);
+    _updateNearbyProfessionalsCount();
   }
 
-  void _setupAnimations() {
-    _slideController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOut,
-    ));
-    _slideController.forward();
-  }
-
-  Future<void> _initializeMap() async {
+  Future<void> _updateNearbyProfessionalsCount() async {
+    setState(() => _isLoading = true);
     try {
-      LoggerService.debug('Starting map initialization');
-      setState(() => _isLoading = true);
-
-      final dbProvider = context.read<DatabaseProvider>();
-      LoggerService.debug('DatabaseProvider state: ${dbProvider.toString()}');
-
-      // Force reload professionals
-      await dbProvider.loadProfessionals();
-      LoggerService.debug('Reloaded professionals from database');
-
-      final position = await LocationService.getCurrentLocation();
-      _currentLocation = LocationModel(
-        latitude: position.latitude,
-        longitude: position.longitude,
+      final count = await Provider.of<DatabaseProvider>(context, listen: false)
+          .countNearbyProfessionals(
+        serviceId: widget.service.id,
+        lat: _selectedLocation.latitude,
+        lng: _selectedLocation.longitude,
+        radiusKm: _selectedRadius,
       );
-      LoggerService.debug(
-          'Current location: ${position.latitude}, ${position.longitude}');
-
-      await _loadProfessionals();
+      setState(() => _nearbyProfessionalsCount = count);
     } catch (e) {
-      LoggerService.error('Failed to initialize map: $e');
+      LoggerService.error('Error counting nearby professionals: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load map data: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+          const SnackBar(content: Text('Failed to find nearby professionals')),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _requestBroadcastJob() async {
+    if (_isRequestingJob) return;
+
+    if (widget.service.basePrice == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Service price not set')),
+      );
+      return;
+    }
+
+    setState(() => _isRequestingJob = true);
+    try {
+      await Provider.of<DatabaseProvider>(context, listen: false)
+          .createBroadcastJob(
+        title: 'Service Request: ${widget.service.name}',
+        description: 'Broadcast request for ${widget.service.name}',
+        serviceId: widget.service.id,
+        hours: 2.0, // Default hours, could be made configurable
+        pricePerHour: widget.service.basePrice!,
+        lat: _selectedLocation.latitude,
+        lng: _selectedLocation.longitude,
+        radiusKm: _selectedRadius,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Request sent successfully!')),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      LoggerService.error('Error creating broadcast job: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to send request')),
         );
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isRequestingJob = false);
       }
     }
-  }
-
-  Future<void> _loadProfessionals() async {
-    try {
-      LoggerService.debug('Starting professional search');
-      setState(() {
-        _isLoading = true;
-      });
-
-      final currentLocation = await LocationService.getCurrentLocation();
-      LoggerService.debug(
-          'Current location: ${currentLocation.latitude ?? 0}, ${currentLocation.longitude ?? 0}');
-
-      final dbProvider = context.read<DatabaseProvider>();
-      final professionals = dbProvider.professionals;
-      LoggerService.debug(
-          'Total professionals in database: ${professionals.length}');
-
-      // Filter professionals: must be available and verified
-      final availableProfessionals = professionals.where((e) {
-        final hasLocation = e.location != null;
-        final withinBudget = e.hourlyRate <= widget.maxBudgetPerHour;
-        LoggerService.debug('professional ${e.profile.name}: '
-            'available=${e.isAvailable}, '
-            'verified=${e.isVerified}, '
-            'rate=${e.hourlyRate}, '
-            'hasLocation=$hasLocation, '
-            'withinBudget=$withinBudget, '
-            'location=${e.location?.latitude}, ${e.location?.longitude}');
-        return e.isAvailable && e.isVerified && withinBudget && hasLocation;
-      }).toList();
-
-      LoggerService.debug(
-          'Found ${availableProfessionals.length} available professionals');
-
-      if (availableProfessionals.isEmpty) {
-        LoggerService.debug(
-            'No professionals available, setting state to failed');
-        setState(() {
-          _isLoading = false;
-          _markers = {};
-        });
-        return;
-      }
-
-      final markers = availableProfessionals.map((professional) {
-        final position = LatLng(
-          professional.location!.latitude,
-          professional.location!.longitude,
-        );
-        LoggerService.debug(
-            'Creating marker for ${professional.profile.name} at location: ${position.latitude}, ${position.longitude}');
-
-        return Marker(
-          markerId: MarkerId('professional_${professional.id}'),
-          position: position,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          // No onTap handler as markers are not clickable in broadcast mode
-        );
-      }).toSet();
-
-      LoggerService.debug('Created ${markers.length} markers');
-
-      setState(() {
-        _isLoading = false;
-        _markers = markers;
-      });
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to load professionals', e, stackTrace);
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _startSearching() async {
-    LoggerService.debug('Starting professional search');
-    setState(() => _searchState = SearchState.searching);
-
-    try {
-      final currentLocation = await LocationService.getCurrentLocation();
-      LoggerService.debug(
-          'Current location: ${currentLocation.latitude ?? 0}, ${currentLocation.longitude ?? 0}');
-
-      final dbProvider = context.read<DatabaseProvider>();
-      final professionals = dbProvider.professionals;
-      LoggerService.debug(
-          'Total professionals in database: ${professionals.length}');
-
-      // Use same filtering as _loadProfessionals
-      final availableProfessionals = professionals
-          .where((e) =>
-              e.isAvailable &&
-              e.isVerified &&
-              e.hourlyRate <= widget.maxBudgetPerHour)
-          .toList();
-
-      LoggerService.debug(
-          'Found ${availableProfessionals.length} available professionals');
-
-      if (availableProfessionals.isEmpty) {
-        LoggerService.debug(
-            'No professionals available, setting state to failed');
-        setState(() => _searchState = SearchState.failed);
-        return;
-      }
-
-      // Set success state after finding professionals
-      setState(() => _searchState = SearchState.success);
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to search for professionals', e, stackTrace);
-      setState(() => _searchState = SearchState.failed);
-    }
-  }
-
-  Future<void> _createJobRequest() async {
-    if (mounted) {
-      setState(() => _searchState = SearchState.requesting);
-    }
-
-    try {
-      final dbProvider = context.read<DatabaseProvider>();
-      final currentLocation = _currentLocation;
-
-      // Create job request without specifying a professional_id (broadcast mode)
-      final job = await dbProvider.createJobRequest(
-        title: widget.service.title,
-        description: widget.additionalNotes ?? '',
-        scheduledDate: widget.scheduledDate,
-        price: widget.maxBudgetPerHour * widget.hours,
-        locationLat: currentLocation?.latitude ?? 0,
-        locationLng: currentLocation?.longitude ?? 0,
-        radiusKm: 10, // Default 10km radius
-        requestType: Job.REQUEST_TYPE_BROADCAST, // Specify broadcast type
-      );
-
-      if (mounted) {
-        setState(() {
-          _searchState = SearchState.requesting;
-          _jobId = job.id;
-        });
-      }
-
-      // Start listening for job status updates
-      _listenForJobUpdates(job.id);
-    } catch (e) {
-      if (mounted) {
-        setState(() => _searchState = SearchState.failed);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to create job request: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _slideController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Request ${widget.service.name}'),
+      ),
       body: Stack(
         children: [
-          // Map View
-          MapView(
-            initialPosition: LatLng(
-              _currentLocation?.latitude ?? _defaultLocation.latitude,
-              _currentLocation?.longitude ?? _defaultLocation.longitude,
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: _selectedLocation,
+              zoom: 15,
             ),
-            markers: _markers,
-            initialZoom: 12,
             onMapCreated: (controller) {
-              // Map initialization logic
+              _mapController = controller;
+              setState(() => _isLoading = false);
+            },
+            circles: {
+              Circle(
+                circleId: const CircleId('searchRadius'),
+                center: _selectedLocation,
+                radius: _selectedRadius * 1000, // Convert km to meters
+                fillColor: Colors.blue.withOpacity(0.2),
+                strokeColor: Colors.blue,
+                strokeWidth: 1,
+              ),
+            },
+            onTap: (location) {
+              setState(() => _selectedLocation = location);
+              _updateNearbyProfessionalsCount();
             },
           ),
-
-          // Back Button with Gradient
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 16,
-            left: 16,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => Navigator.pop(context),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    child: Icon(
-                      Icons.arrow_back,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Bottom Card with Status
+          // Bottom Card
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: SlideTransition(
-              position: _slideAnimation,
-              child: Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
+            child: Card(
+              margin: const EdgeInsets.all(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isLoading)
+                      const LoadingIndicator()
+                    else ...[
+                      Text(
+                        'Found $_nearbyProfessionalsCount professionals nearby',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Within ${_selectedRadius.toStringAsFixed(1)} km radius',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      Slider(
+                        value: _selectedRadius,
+                        min: 1.0,
+                        max: 20.0,
+                        divisions: 19,
+                        label: '${_selectedRadius.toStringAsFixed(1)} km',
+                        onChanged: (value) {
+                          setState(() => _selectedRadius = value);
+                          _updateNearbyProfessionalsCount();
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed:
+                              _nearbyProfessionalsCount > 0 && !_isRequestingJob
+                                  ? _requestBroadcastJob
+                                  : null,
+                          child: Text(_isRequestingJob
+                              ? 'Sending Request...'
+                              : 'Request Service'),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-                child: _buildBottomCardContent(),
               ),
             ),
           ),
@@ -362,236 +198,9 @@ class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen>
     );
   }
 
-  Widget _buildBottomCardContent() {
-    switch (_searchState) {
-      case SearchState.searching:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Finding professionals...',
-              style: AppTextStyles.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Searching for available professionals in your area',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        );
-
-      case SearchState.requesting:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              'Requesting service...',
-              style: AppTextStyles.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Waiting for a professional to accept your request',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text('Cancel Request'),
-              ),
-            ),
-          ],
-        );
-
-      case SearchState.success:
-        if (_jobId == null) {
-          // Show the "Request Job" button when professionals are found
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Professionals Found!',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${_markers.length} professionals available nearby',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => _createJobRequest(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    'Request Job',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        }
-        // Show confirmation when a professional accepts
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.check_circle_outline,
-              color: Colors.green,
-              size: 48,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Professional Assigned!',
-              style: AppTextStyles.bodyLarge.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'A professional has accepted your request',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // Navigate to job details or chat
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'View Details',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-
-      case SearchState.failed:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 48,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No professionals available',
-              style: AppTextStyles.bodyLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try adjusting your budget or schedule',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text('Go Back'),
-              ),
-            ),
-          ],
-        );
-    }
-  }
-
-  void _listenForJobUpdates(String jobId) {
-    final dbProvider = context.read<DatabaseProvider>();
-
-    dbProvider.streamJobUpdates(jobId).listen(
-      (job) {
-        if (!mounted) return;
-
-        if (job == null) {
-          setState(() => _searchState = SearchState.failed);
-          return;
-        }
-
-        switch (job.status) {
-          case Job.STATUS_SCHEDULED:
-            setState(() => _searchState = SearchState.success);
-            break;
-          case 'expired':
-          case 'cancelled':
-            setState(() => _searchState = SearchState.failed);
-            break;
-          default:
-            // Keep showing requesting state
-            break;
-        }
-      },
-      onError: (error) {
-        LoggerService.error('Error listening to job updates', error);
-        if (mounted) {
-          setState(() => _searchState = SearchState.failed);
-        }
-      },
-    );
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
   }
 }
