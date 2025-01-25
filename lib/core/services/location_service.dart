@@ -1,50 +1,64 @@
 import 'package:geolocator/geolocator.dart';
-import '../utils/error_handler.dart';
+import '../services/logger_service.dart';
 
 class LocationService {
   static Future<Position> getCurrentLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Test if location services are enabled.
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      throw const ErrorHandler('Location services are disabled.');
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        throw const ErrorHandler('Location permissions are denied');
+    try {
+      // Test if location services are enabled.
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Location services are disabled.');
       }
-    }
 
-    if (permission == LocationPermission.deniedForever) {
-      throw const ErrorHandler(
-          'Location permissions are permanently denied, we cannot request permissions.');
-    }
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Location permissions are denied');
+        }
+      }
 
-    return await Geolocator.getCurrentPosition();
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception(
+          'Location permissions are permanently denied, we cannot request permissions.',
+        );
+      }
+
+      // Get current position with high accuracy
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+    } catch (e) {
+      LoggerService.error('Error getting location: $e');
+      rethrow;
+    }
   }
 
   static Stream<Position> getLocationStream() {
     return Geolocator.getPositionStream();
   }
 
-  static double calculateDistance(
-    double startLatitude,
-    double startLongitude,
-    double endLatitude,
-    double endLongitude,
-  ) {
-    return Geolocator.distanceBetween(
-          startLatitude,
-          startLongitude,
-          endLatitude,
-          endLongitude,
-        ) /
-        1000; // Convert to kilometers
+  static Future<double> calculateDistance(
+    double startLat,
+    double startLng,
+    double endLat,
+    double endLng,
+  ) async {
+    try {
+      return Geolocator.distanceBetween(
+            startLat,
+            startLng,
+            endLat,
+            endLng,
+          ) /
+          1000; // Convert meters to kilometers
+    } catch (e) {
+      LoggerService.error('Error calculating distance: $e');
+      rethrow;
+    }
   }
 
   static bool isWithinRadius(
