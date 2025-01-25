@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../../models/professional_model.dart';
-import '../../../providers/database_provider.dart';
 import '../../../core/constants/colors.dart';
-import '../../common/widgets/loading_indicator.dart';
 
 class ProfessionalProfileScreen extends StatelessWidget {
   final Professional professional;
   final bool showBookButton;
 
   const ProfessionalProfileScreen({
-    Key? key,
+    super.key,
     required this.professional,
     this.showBookButton = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -60,13 +57,13 @@ class ProfessionalProfileScreen extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 4),
-                  if (professional.rating != null) ...[
+                  ...[
                     Row(
                       children: [
                         Icon(Icons.star, color: Colors.amber[700], size: 20),
                         const SizedBox(width: 4),
                         Text(
-                          professional.rating!.toStringAsFixed(1),
+                          professional.rating.toStringAsFixed(1),
                           style: Theme.of(context).textTheme.bodyLarge,
                         ),
                       ],
