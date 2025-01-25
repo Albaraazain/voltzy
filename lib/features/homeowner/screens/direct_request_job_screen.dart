@@ -4,8 +4,6 @@ import '../../../models/professional_model.dart';
 import '../../../models/service_model.dart';
 import '../../../models/job_model.dart';
 import '../../../providers/database_provider.dart';
-import '../../../core/constants/colors.dart';
-import '../../common/widgets/loading_indicator.dart';
 
 class DirectRequestJobScreen extends StatefulWidget {
   final Professional professional;
@@ -15,13 +13,13 @@ class DirectRequestJobScreen extends StatefulWidget {
   final double budget;
 
   const DirectRequestJobScreen({
-    Key? key,
+    super.key,
     required this.professional,
     required this.service,
     required this.scheduledDate,
     required this.hours,
     required this.budget,
-  }) : super(key: key);
+  });
 
   @override
   State<DirectRequestJobScreen> createState() => _DirectRequestJobScreenState();
