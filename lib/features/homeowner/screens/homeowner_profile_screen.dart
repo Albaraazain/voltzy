@@ -191,11 +191,6 @@ class HomeownerProfileScreen extends StatelessWidget {
     final homeowner = context.watch<DatabaseProvider>().currentHomeowner;
     final profile = context.watch<DatabaseProvider>().currentProfile;
 
-    // Set the current navigation index
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BottomNavigationProvider>().setIndex(3);
-    });
-
     if (homeowner == null || profile == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -408,7 +403,6 @@ class HomeownerProfileScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const HomeownerBottomNavigation(),
     );
   }
 }
