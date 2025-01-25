@@ -6,6 +6,7 @@ import '../../../core/utils/icon_mapper.dart';
 import '../../../providers/database_provider.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../models/service_category_card.dart';
+import '../models/service.dart';
 
 class CategoryDetailsScreen extends StatefulWidget {
   final ServiceCategoryCard category;
@@ -21,7 +22,7 @@ class CategoryDetailsScreen extends StatefulWidget {
 
 class _CategoryDetailsScreenState extends State<CategoryDetailsScreen> {
   bool _isLoading = true;
-  List<Map<String, dynamic>> _services = [];
+  List<CategoryService> _services = [];
 
   @override
   void initState() {
@@ -37,15 +38,7 @@ class _CategoryDetailsScreenState extends State<CategoryDetailsScreen> {
           .getServicesByCategory(widget.category.id);
 
       setState(() {
-        _services = services.map((service) {
-          return {
-            'id': service.id,
-            'name': service.name,
-            'description': service.description,
-            'duration': service.duration,
-            'price': service.price,
-          };
-        }).toList();
+        _services = services;
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -125,14 +118,14 @@ class _CategoryDetailsScreenState extends State<CategoryDetailsScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: _ServiceCard(
-                        name: service['name'],
-                        description: service['description'],
-                        duration: service['duration'].toString(),
-                        price: service['price'],
+                        name: service.name,
+                        description: service.description,
+                        duration: service.duration.toString(),
+                        price: service.price,
                         accentColor: widget.category.accentColor,
                         onTap: () {
                           // TODO: Navigate to service booking screen
-                          print('Tapped service: ${service['id']}');
+                          print('Tapped service: ${service.id}');
                         },
                       ),
                     );
