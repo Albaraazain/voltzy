@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flashy_tab_bar2/flashy_tab_bar2.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../providers/database_provider.dart';
@@ -50,10 +51,6 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
           size = CardSize.small;
         }
 
-        // Generate a unique color based on the category name
-        final hue = (category.name.hashCode % 360).toDouble();
-        final accentColor = HSLColor.fromAHSL(1.0, hue, 0.6, 0.4).toColor();
-
         return ServiceCategoryCard(
           id: category.id,
           name: category.name,
@@ -63,7 +60,7 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
           minPrice: 89.99, // TODO: Get actual price range from database
           maxPrice: 1999.99,
           size: size,
-          accentColor: accentColor,
+          accentColor: AppColors.getCategoryColor(index),
         );
       }).toList();
 
@@ -96,9 +93,10 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.background,
+        elevation: 0,
         title: Text(
-          'Home',
+          _getTitle(),
           style: AppTextStyles.h2,
         ),
         actions: [
@@ -114,94 +112,83 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
           ),
         ],
       ),
-      body: _isLoading ? const Center(child: LoadingIndicator()) : _buildBody(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Home',
+      body: _isLoading
+          ? const Center(child: LoadingIndicator())
+          : _buildCurrentScreen(),
+      bottomNavigationBar: FlashyTabBar(
+        selectedIndex: _currentIndex,
+        showElevation: true,
+        backgroundColor: AppColors.surface,
+        height: 55,
+        animationDuration: const Duration(milliseconds: 200),
+        items: [
+          FlashyTabBarItem(
+            icon: const Icon(Icons.home_outlined, size: 22),
+            title: const Text('Home', style: TextStyle(fontSize: 12)),
+            activeColor: AppColors.primary,
+            inactiveColor: AppColors.textSecondary,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search_outlined),
-            label: 'Search',
+          FlashyTabBarItem(
+            icon: const Icon(Icons.search_outlined, size: 22),
+            title: const Text('Search', style: TextStyle(fontSize: 12)),
+            activeColor: AppColors.primary,
+            inactiveColor: AppColors.textSecondary,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined),
-            label: 'History',
+          FlashyTabBarItem(
+            icon: const Icon(Icons.work_outline, size: 22),
+            title: const Text('Jobs', style: TextStyle(fontSize: 12)),
+            activeColor: AppColors.primary,
+            inactiveColor: AppColors.textSecondary,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            label: 'Settings',
+          FlashyTabBarItem(
+            icon: const Icon(Icons.person_outline, size: 22),
+            title: const Text('Profile', style: TextStyle(fontSize: 12)),
+            activeColor: AppColors.primary,
+            inactiveColor: AppColors.textSecondary,
           ),
         ],
+        onItemSelected: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
       ),
     );
   }
 
-  Widget _buildBody() {
+  String _getTitle() {
     switch (_currentIndex) {
       case 0:
-        return _buildHomeTab();
+        return 'Home';
       case 1:
-        return _buildSearchTab();
+        return 'Search';
       case 2:
-        return _buildHistoryTab();
+        return 'My Jobs';
       case 3:
-        return _buildSettingsTab();
+        return 'Profile';
       default:
-        return const SizedBox.shrink();
+        return 'Home';
     }
   }
 
-  Widget _buildHomeTab() {
-    final homeowner = context.watch<DatabaseProvider>().currentHomeowner;
-    if (homeowner == null) return const SizedBox.shrink();
-
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome back, ${homeowner.profile.name}!',
-                  style: AppTextStyles.h3,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'What service can we help you with today?',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        ),
-        SliverFillRemaining(
-          child: ServiceCategoriesGrid(
-            categories: _categories,
-            onCategoryTap: _handleCategoryTap,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSearchTab() {
-    return const Center(child: Text('Search Tab'));
-  }
-
-  Widget _buildHistoryTab() {
-    return const Center(child: Text('History Tab'));
-  }
-
-  Widget _buildSettingsTab() {
-    return const Center(child: Text('Settings Tab'));
+  Widget _buildCurrentScreen() {
+    switch (_currentIndex) {
+      case 0:
+        return ServiceCategoriesGrid(
+          categories: _categories,
+          onCategoryTap: _handleCategoryTap,
+        );
+      case 1:
+        return const Center(child: Text('Search Screen'));
+      case 2:
+        return const Center(child: Text('Jobs Screen'));
+      case 3:
+        return const Center(child: Text('Profile Screen'));
+      default:
+        return ServiceCategoriesGrid(
+          categories: _categories,
+          onCategoryTap: _handleCategoryTap,
+        );
+    }
   }
 }
