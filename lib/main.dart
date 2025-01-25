@@ -13,12 +13,8 @@ void main() async {
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
-    authOptions: FlutterAuthClientOptions(
-      authFlowType: AuthFlowType.pkce,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true,
-    ),
+    authFlowType: AuthFlowType.pkce,
+    debug: true,
   );
 
   runApp(const MyApp());
