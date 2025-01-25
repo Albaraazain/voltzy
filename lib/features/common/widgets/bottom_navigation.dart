@@ -56,20 +56,6 @@ class HomeownerBottomNavigation extends StatelessWidget {
           ],
           onItemSelected: (index) {
             navigationProvider.setIndex(index);
-            switch (index) {
-              case 0:
-                Navigator.pushReplacementNamed(context, '/homeowner/main');
-                break;
-              case 1:
-                // TODO: Navigate to favorites
-                break;
-              case 2:
-                Navigator.pushReplacementNamed(context, '/jobs');
-                break;
-              case 3:
-                Navigator.pushReplacementNamed(context, '/homeowner/profile');
-                break;
-            }
           },
         );
       },
