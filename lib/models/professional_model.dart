@@ -3,6 +3,7 @@ import 'package:voltz/models/location_model.dart';
 import 'package:voltz/models/payment_info_model.dart';
 import 'package:voltz/models/profile_model.dart';
 import 'package:voltz/models/service_model.dart';
+import 'package:voltz/models/notification_preferences_model.dart';
 
 @immutable
 class Professional {
@@ -24,6 +25,13 @@ class Professional {
   final List<String> specialties;
   final bool isAvailable;
   final Profile profile;
+  final String? phone;
+  final String? licenseNumber;
+  final int yearsOfExperience;
+  final NotificationPreferences? notificationPreferences;
+  final double? locationLat;
+  final double? locationLng;
+  final int jobsCompleted;
 
   const Professional({
     required this.id,
@@ -44,6 +52,13 @@ class Professional {
     this.specialties = const [],
     this.isAvailable = true,
     required this.profile,
+    this.phone,
+    this.licenseNumber,
+    required this.yearsOfExperience,
+    this.notificationPreferences,
+    this.locationLat,
+    this.locationLng,
+    this.jobsCompleted = 0,
   });
 
   factory Professional.fromJson(Map<String, dynamic> json) {
@@ -54,7 +69,7 @@ class Professional {
       phoneNumber: json['phone_number'] as String?,
       profileImage: json['profile_image'] as String?,
       bio: json['bio'] as String?,
-      hourlyRate: (json['hourly_rate'] as num).toDouble(),
+      hourlyRate: (json['hourly_rate'] as num?)?.toDouble() ?? 0.0,
       isVerified: json['is_verified'] as bool? ?? false,
       location:
           json['location'] != null ? Location.fromJson(json['location']) : null,
@@ -75,6 +90,16 @@ class Professional {
           [],
       isAvailable: json['is_available'] as bool? ?? true,
       profile: Profile.fromJson(json['profile'] as Map<String, dynamic>),
+      phone: json['phone'] as String?,
+      licenseNumber: json['license_number'] as String?,
+      yearsOfExperience: json['years_of_experience'] as int? ?? 0,
+      notificationPreferences: json['notification_preferences'] != null
+          ? NotificationPreferences.fromJson(
+              json['notification_preferences'] as Map<String, dynamic>)
+          : null,
+      locationLat: json['location_lat'] as double?,
+      locationLng: json['location_lng'] as double?,
+      jobsCompleted: json['jobs_completed'] as int? ?? 0,
     );
   }
 
@@ -98,6 +123,13 @@ class Professional {
       'specialties': specialties,
       'is_available': isAvailable,
       'profile': profile.toJson(),
+      'phone': phone,
+      'license_number': licenseNumber,
+      'years_of_experience': yearsOfExperience,
+      'notification_preferences': notificationPreferences?.toJson(),
+      'location_lat': locationLat,
+      'location_lng': locationLng,
+      'jobs_completed': jobsCompleted,
     };
   }
 
@@ -120,6 +152,13 @@ class Professional {
     List<String>? specialties,
     bool? isAvailable,
     Profile? profile,
+    String? phone,
+    String? licenseNumber,
+    int? yearsOfExperience,
+    NotificationPreferences? notificationPreferences,
+    double? locationLat,
+    double? locationLng,
+    int? jobsCompleted,
   }) {
     return Professional(
       id: id ?? this.id,
@@ -140,6 +179,14 @@ class Professional {
       specialties: specialties ?? this.specialties,
       isAvailable: isAvailable ?? this.isAvailable,
       profile: profile ?? this.profile,
+      phone: phone ?? this.phone,
+      licenseNumber: licenseNumber ?? this.licenseNumber,
+      yearsOfExperience: yearsOfExperience ?? this.yearsOfExperience,
+      notificationPreferences:
+          notificationPreferences ?? this.notificationPreferences,
+      locationLat: locationLat ?? this.locationLat,
+      locationLng: locationLng ?? this.locationLng,
+      jobsCompleted: jobsCompleted ?? this.jobsCompleted,
     );
   }
 
@@ -148,44 +195,44 @@ class Professional {
     if (identical(this, other)) return true;
     return other is Professional &&
         other.id == id &&
-        other.name == name &&
-        other.email == email &&
-        other.phoneNumber == phoneNumber &&
+        other.profile == profile &&
         other.profileImage == profileImage &&
-        other.bio == bio &&
+        other.phone == phone &&
+        other.licenseNumber == licenseNumber &&
+        other.yearsOfExperience == yearsOfExperience &&
         other.hourlyRate == hourlyRate &&
-        other.isVerified == isVerified &&
-        other.location == location &&
-        other.services == services &&
-        other.paymentInfo == paymentInfo &&
-        other.createdAt == createdAt &&
-        other.updatedAt == updatedAt &&
         other.rating == rating &&
-        other.reviewCount == reviewCount &&
-        other.specialties == specialties &&
+        other.jobsCompleted == jobsCompleted &&
         other.isAvailable == isAvailable &&
-        other.profile == profile;
+        other.isVerified == isVerified &&
+        other.services == services &&
+        other.specialties == specialties &&
+        other.paymentInfo == paymentInfo &&
+        other.notificationPreferences == notificationPreferences &&
+        other.locationLat == locationLat &&
+        other.locationLng == locationLng;
   }
 
   @override
-  int get hashCode => Object.hash(
-        id,
-        name,
-        email,
-        phoneNumber,
-        profileImage,
-        bio,
-        hourlyRate,
-        isVerified,
-        location,
-        services,
-        paymentInfo,
-        createdAt,
-        updatedAt,
-        rating,
-        reviewCount,
-        specialties,
-        isAvailable,
-        profile,
-      );
+  int get hashCode {
+    return Object.hash(
+      id,
+      profile,
+      profileImage,
+      phone,
+      licenseNumber,
+      yearsOfExperience,
+      hourlyRate,
+      rating,
+      jobsCompleted,
+      isAvailable,
+      isVerified,
+      Object.hashAll(services),
+      Object.hashAll(specialties),
+      paymentInfo,
+      notificationPreferences,
+      locationLat,
+      locationLng,
+    );
+  }
 }
