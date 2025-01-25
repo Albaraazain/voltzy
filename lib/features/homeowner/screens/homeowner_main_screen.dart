@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../providers/database_provider.dart';
-import '../../../providers/homeowner_provider.dart';
 import '../../common/widgets/loading_indicator.dart';
+import '../models/service_category_card.dart';
+import '../widgets/service_categories_grid.dart';
 
 class HomeownerMainScreen extends StatefulWidget {
   const HomeownerMainScreen({super.key});
@@ -16,6 +17,7 @@ class HomeownerMainScreen extends StatefulWidget {
 class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
   bool _isLoading = false;
   int _currentIndex = 0;
+  List<ServiceCategoryCard> _categories = [];
 
   @override
   void initState() {
@@ -28,6 +30,46 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
     try {
       final databaseProvider = context.read<DatabaseProvider>();
       await databaseProvider.loadInitialData();
+
+      // Load categories from the database
+      final categories = await databaseProvider.loadServiceCategories();
+
+      // Convert to card models with different sizes and accent colors
+      final cardCategories = categories.asMap().entries.map((entry) {
+        final index = entry.key;
+        final category = entry.value;
+
+        // Assign different sizes based on position
+        CardSize size;
+        if (index == 0) {
+          size = CardSize.large;
+        } else if (index % 3 == 0) {
+          size = CardSize.medium;
+        } else {
+          size = CardSize.small;
+        }
+
+        // Generate a unique color based on the category name
+        final hue = (category.name.hashCode % 360).toDouble();
+        final accentColor = HSLColor.fromAHSL(1.0, hue, 0.6, 0.4).toColor();
+
+        return ServiceCategoryCard(
+          id: category.id,
+          name: category.name,
+          description: category.description ?? '',
+          iconName:
+              category.iconName ?? '0xe25d', // Default icon if none specified
+          serviceCount: 5, // TODO: Get actual count from database
+          minPrice: 89.99, // TODO: Get actual price range from database
+          maxPrice: 1999.99,
+          size: size,
+          accentColor: accentColor,
+        );
+      }).toList();
+
+      setState(() {
+        _categories = cardCategories;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -37,6 +79,11 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _handleCategoryTap(String categoryId) {
+    // TODO: Navigate to category detail screen
+    print('Tapped category: $categoryId');
   }
 
   @override
@@ -107,15 +154,36 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
     final homeowner = context.watch<DatabaseProvider>().currentHomeowner;
     if (homeowner == null) return const SizedBox.shrink();
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          'Welcome back, ${homeowner.profile.name}!',
-          style: AppTextStyles.h3,
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back, ${homeowner.profile.name}!',
+                  style: AppTextStyles.h3,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'What service can we help you with today?',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
         ),
-        const SizedBox(height: 24),
-        // Add more widgets for the home tab
+        SliverFillRemaining(
+          child: ServiceCategoriesGrid(
+            categories: _categories,
+            onCategoryTap: _handleCategoryTap,
+          ),
+        ),
       ],
     );
   }
