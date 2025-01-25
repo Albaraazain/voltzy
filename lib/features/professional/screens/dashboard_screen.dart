@@ -8,7 +8,6 @@ import '../../../providers/job_provider.dart';
 import '../../../providers/notification_provider.dart';
 import '../../../models/professional_stats.dart';
 import '../../../models/job_model.dart';
-import '../../../core/utils/api_response.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../../../core/services/logger_service.dart';
 import '../../common/widgets/job_card.dart';
