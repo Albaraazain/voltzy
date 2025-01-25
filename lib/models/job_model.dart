@@ -3,6 +3,7 @@ import 'professional_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'service_model.dart';
+import 'profile_model.dart';
 
 @immutable
 class Job {
@@ -121,6 +122,14 @@ class Job {
   }
 
   factory Job.fromJson(Map<String, dynamic> json) {
+    final homeownerData = json['homeowner'] as Map<String, dynamic>?;
+    final professionalData = json['professional'] as Map<String, dynamic>?;
+
+    // Get profiles from homeowner and professional data
+    final homeownerProfile = homeownerData != null
+        ? Profile.fromJson(homeownerData['profile'] as Map<String, dynamic>)
+        : null;
+
     return Job(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -132,8 +141,10 @@ class Job {
       updatedAt: DateTime.parse(json['updated_at'] as String),
       homeownerId: json['homeowner_id'] as String,
       professionalId: json['professional_id'] as String?,
-      verificationStatus: json['verification_status'] as String,
-      paymentStatus: json['payment_status'] as String,
+      verificationStatus:
+          json['verification_status'] as String? ?? VERIFICATION_STATUS_PENDING,
+      paymentStatus:
+          json['payment_status'] as String? ?? PAYMENT_STATUS_PENDING,
       requestType: json['request_type'] as String? ?? REQUEST_TYPE_DIRECT,
       paymentDetails: json['payment_details'] as Map<String, dynamic>?,
       verificationDetails:
@@ -141,11 +152,11 @@ class Job {
       expiresAt: json['expires_at'] != null
           ? DateTime.parse(json['expires_at'] as String)
           : null,
-      homeowner: json['homeowner'] != null
-          ? Homeowner.fromJson(json['homeowner'] as Map<String, dynamic>)
+      homeowner: homeownerData != null
+          ? Homeowner.fromJson(homeownerData, profile: homeownerProfile!)
           : null,
-      professional: json['professional'] != null
-          ? Professional.fromJson(json['professional'] as Map<String, dynamic>)
+      professional: professionalData != null
+          ? Professional.fromJson(professionalData)
           : null,
       locationLat: json['location_lat'] != null
           ? (json['location_lat'] as num).toDouble()
