@@ -82,14 +82,27 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
                 margin: const EdgeInsets.only(bottom: 16),
                 child: InkWell(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => BroadcastJobScreen(
-                          service: service.toService(),
+                    LoggerService.debug('Service clicked: ${service.name}');
+                    try {
+                      final convertedService = service.toService();
+                      LoggerService.debug(
+                          'Service converted successfully: ${convertedService.name}');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => BroadcastJobScreen(
+                            service: convertedService,
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    } catch (e) {
+                      LoggerService.error(
+                          'Error navigating to broadcast job screen', e);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Failed to open service details')),
+                      );
+                    }
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(16),
