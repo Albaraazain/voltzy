@@ -82,7 +82,7 @@ class _BroadcastRequestScreenState extends State<BroadcastRequestScreen> {
         context,
         MaterialPageRoute(
           builder: (context) => BroadcastJobScreen(
-            service: widget.service,
+            service: widget.service.toService(),
           ),
         ),
       );
