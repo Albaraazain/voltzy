@@ -1,4 +1,3 @@
 class MapsConfig {
-  static const String apiKey =
-      'YOUR_GOOGLE_MAPS_API_KEY'; // Replace with your actual API key
+  static const String apiKey = 'AIzaSyCJ72tAQidcebxcF4AxBWoqTGf3GUNbEAo';
 }
