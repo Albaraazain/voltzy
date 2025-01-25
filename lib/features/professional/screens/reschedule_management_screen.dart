@@ -4,7 +4,7 @@ import '../../../providers/schedule_provider.dart';
 import 'package:provider/provider.dart';
 
 class RescheduleManagementScreen extends StatelessWidget {
-  const RescheduleManagementScreen({Key? key}) : super(key: key);
+  const RescheduleManagementScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
