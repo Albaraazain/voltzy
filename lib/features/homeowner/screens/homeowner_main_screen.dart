@@ -4,6 +4,9 @@ import '../../../core/constants/colors.dart';
 import '../../../providers/database_provider.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../models/service_category_card.dart';
+import '../screens/category_services_screen.dart';
+import '../../../providers/bottom_navigation_provider.dart';
+import '../../common/widgets/bottom_navigation.dart';
 
 class HomeownerMainScreen extends StatefulWidget {
   const HomeownerMainScreen({super.key});
@@ -221,6 +224,11 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Set the current navigation index
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<BottomNavigationProvider>().setIndex(0);
+    });
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -243,10 +251,10 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
                       ),
                     ),
                   ),
-                  _buildBottomNav(),
                 ],
               ),
       ),
+      bottomNavigationBar: const HomeownerBottomNavigation(),
     );
   }
 
@@ -351,10 +359,24 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
       children: _categories.map((category) {
         final color = _getCategoryColor(category.name);
         final icon = _getCategoryIcon(category.name);
-        return _buildServiceCard(
-          category.name.replaceAll(' Services', ''),
-          color,
-          icon,
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CategoryServicesScreen(
+                  categoryName: category.name.replaceAll(' Services', ''),
+                  categoryColor: color,
+                  categoryId: category.id,
+                ),
+              ),
+            );
+          },
+          child: _buildServiceCard(
+            category.name.replaceAll(' Services', ''),
+            color,
+            icon,
+          ),
         );
       }).toList(),
     );
@@ -408,38 +430,6 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
   Widget _buildRepairIcon() {
     return CustomPaint(
       painter: RepairPainter(),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        Column(
-          children: [
-            Icon(Icons.home, color: Colors.amber.shade500),
-            const SizedBox(height: 4),
-            Container(
-              width: 4,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.amber.shade500,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ],
-        ),
-        Icon(Icons.favorite_border, color: Colors.grey.shade400),
-        Icon(Icons.access_time, color: Colors.grey.shade400),
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            shape: BoxShape.circle,
-          ),
-        ),
-      ],
     );
   }
 }

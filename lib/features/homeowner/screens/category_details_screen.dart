@@ -130,16 +130,12 @@ class _CategoryDetailsScreenState extends State<CategoryDetailsScreen> {
                               'DEBUG: Service details - Name: ${service.name}, Price: ${service.basePrice}');
                           try {
                             print(
-                                'DEBUG: Converting CategoryService to Service');
-                            final convertedService = service.toService();
-                            print('DEBUG: Service converted successfully');
-                            print(
                                 'DEBUG: Attempting to navigate to broadcast-job screen');
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => BroadcastJobScreen(
-                                  service: convertedService,
+                                  service: service,
                                 ),
                               ),
                             ).then((value) {

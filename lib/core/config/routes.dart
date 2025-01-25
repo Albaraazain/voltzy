@@ -66,7 +66,7 @@ class AppRoutes {
         );
 
       case '/broadcast-job':
-        final service = settings.arguments as Service;
+        final service = settings.arguments as CategoryService;
         return MaterialPageRoute(
           builder: (_) => BroadcastJobScreen(service: service),
         );

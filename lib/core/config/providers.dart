@@ -7,11 +7,15 @@ import '../../providers/notification_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/professional_stats_provider.dart';
 import '../../providers/schedule_provider.dart';
+import '../../providers/bottom_navigation_provider.dart';
 import '../services/supabase_config.dart';
 
 class AppProviders {
   static List<SingleChildWidget> getProviders() {
     return [
+      ChangeNotifierProvider<BottomNavigationProvider>(
+        create: (_) => BottomNavigationProvider(),
+      ),
       ChangeNotifierProvider<AuthProvider>(
         create: (_) => AuthProvider(SupabaseConfig.client),
       ),

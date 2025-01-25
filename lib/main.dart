@@ -13,6 +13,7 @@ import 'features/common/widgets/loading_indicator.dart';
 import 'features/homeowner/screens/homeowner_main_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/database_provider.dart';
+import 'providers/bottom_navigation_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 Future<void> main() async {
@@ -33,28 +34,8 @@ Future<void> main() async {
       debug: true,
     );
 
-    // Get the initialized client
-    final supabase = Supabase.instance.client;
-
     // Run the app with the client
-    runApp(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider(
-            create: (_) => AuthProvider(supabase),
-          ),
-          ChangeNotifierProxyProvider<AuthProvider, DatabaseProvider>(
-            create: (context) => DatabaseProvider(
-              Provider.of<AuthProvider>(context, listen: false),
-            ),
-            update: (context, auth, previous) =>
-                previous ?? DatabaseProvider(auth),
-          ),
-          // Add other providers here
-        ],
-        child: const MyApp(),
-      ),
-    );
+    runApp(const MyAppWrapper());
   } catch (e) {
     debugPrint('Failed to initialize app: $e');
     runApp(const ErrorApp());
@@ -75,6 +56,48 @@ class ErrorApp extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class MyAppWrapper extends StatelessWidget {
+  const MyAppWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final supabase = Supabase.instance.client;
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<BottomNavigationProvider>(
+          create: (_) => BottomNavigationProvider(),
+        ),
+        ChangeNotifierProvider<AuthProvider>(
+          create: (_) => AuthProvider(supabase),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, DatabaseProvider>(
+          create: (context) => DatabaseProvider(
+            Provider.of<AuthProvider>(context, listen: false),
+          ),
+          update: (context, auth, previous) =>
+              previous ?? DatabaseProvider(auth),
+        ),
+        ...AppProviders.getProviders().where((provider) {
+          // Filter out providers that are already defined above
+          if (provider is ChangeNotifierProvider<BottomNavigationProvider>) {
+            return false;
+          }
+          if (provider is ChangeNotifierProvider<AuthProvider>) {
+            return false;
+          }
+          if (provider
+              is ChangeNotifierProxyProvider<AuthProvider, DatabaseProvider>) {
+            return false;
+          }
+          return true;
+        }),
+      ],
+      child: const MyApp(),
     );
   }
 }

@@ -84,14 +84,11 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
                   onTap: () {
                     LoggerService.debug('Service clicked: ${service.name}');
                     try {
-                      final convertedService = service.toService();
-                      LoggerService.debug(
-                          'Service converted successfully: ${convertedService.name}');
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => BroadcastJobScreen(
-                            service: convertedService,
+                            service: service,
                           ),
                         ),
                       );

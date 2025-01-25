@@ -2113,4 +2113,21 @@ class DatabaseProvider with ChangeNotifier {
       rethrow;
     }
   }
+
+  Future<List<Map<String, dynamic>>> loadServicesByCategory(
+      String categoryId) async {
+    try {
+      final response = await _client
+          .from('services')
+          .select()
+          .eq('category_id', categoryId)
+          .filter('deleted_at', 'is', null)
+          .order('name');
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error loading services: $e');
+      rethrow;
+    }
+  }
 }
