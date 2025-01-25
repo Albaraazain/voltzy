@@ -20,10 +20,8 @@ abstract class BaseRepository<T> {
       final response =
           await supabase.from(table).insert(toJson(entity)).select().single();
 
-      if (response is Map<String, dynamic>) {
-        return ApiResponse.success(fromJson(response));
-      }
-      throw Exception('Invalid response type');
+      return ApiResponse.success(fromJson(response));
+          throw Exception('Invalid response type');
     } catch (error) {
       return ApiResponse.error(error.toString());
     }
@@ -35,10 +33,8 @@ abstract class BaseRepository<T> {
       final response =
           await supabase.from(table).select().eq('id', id).single();
 
-      if (response is Map<String, dynamic>) {
-        return ApiResponse.success(fromJson(response));
-      }
-      throw Exception('Invalid response type');
+      return ApiResponse.success(fromJson(response));
+          throw Exception('Invalid response type');
     } catch (error) {
       return ApiResponse.error(error.toString());
     }
@@ -54,10 +50,8 @@ abstract class BaseRepository<T> {
           .select()
           .single();
 
-      if (response is Map<String, dynamic>) {
-        return ApiResponse.success(fromJson(response));
-      }
-      throw Exception('Invalid response type');
+      return ApiResponse.success(fromJson(response));
+          throw Exception('Invalid response type');
     } catch (error) {
       return ApiResponse.error(error.toString());
     }
@@ -69,7 +63,7 @@ abstract class BaseRepository<T> {
       await supabase.from(table).delete().eq('id', id);
 
       return ApiResponse.success(true);
-    } catch (error, stackTrace) {
+    } catch (error) {
       return ApiResponse.error(error.toString());
     }
   }
@@ -115,7 +109,7 @@ abstract class BaseRepository<T> {
           .toList();
 
       return ApiResponse.success(items);
-    } catch (error, stackTrace) {
+    } catch (error) {
       return ApiResponse.error(error.toString());
     }
   }
@@ -159,7 +153,7 @@ abstract class BaseRepository<T> {
             .toList();
         yield ApiResponse.success(items);
       }
-    } catch (error, stackTrace) {
+    } catch (error) {
       yield ApiResponse.error(error.toString());
     }
   }
@@ -172,7 +166,7 @@ abstract class BaseRepository<T> {
       final response = await queryBuilder(supabase);
       final items = response.map((item) => fromJson(item)).toList();
       return ApiResponse.success(items);
-    } catch (error, stackTrace) {
+    } catch (error) {
       return ApiResponse.error(error.toString());
     }
   }
@@ -184,7 +178,7 @@ abstract class BaseRepository<T> {
     try {
       final response = await mutationBuilder(supabase);
       return ApiResponse.success(fromJson(response));
-    } catch (error, stackTrace) {
+    } catch (error) {
       return ApiResponse.error(error.toString());
     }
   }
