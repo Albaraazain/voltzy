@@ -4,6 +4,7 @@ import '../../features/auth/screens/register_screen.dart';
 import '../../features/homeowner/screens/broadcast_job_screen.dart';
 import '../../features/homeowner/screens/direct_request_job_screen.dart';
 import '../../features/homeowner/screens/direct_request_map_screen.dart';
+import '../../features/homeowner/screens/homeowner_main_screen.dart';
 import '../../features/homeowner/screens/jobs_screen.dart';
 import '../../features/homeowner/screens/professional_profile_screen.dart';
 import '../../features/homeowner/screens/search_screen.dart';
@@ -23,6 +24,8 @@ class AppRoutes {
       '/professional/dashboard': (context) => const DashboardScreen(),
       '/professional/schedule': (context) => const ScheduleScreen(),
       '/professional/main': (context) => const ProfessionalMainScreen(),
+      '/homeowner/dashboard': (context) => const HomeownerMainScreen(),
+      '/homeowner/main': (context) => const HomeownerMainScreen(),
     };
   }
 
