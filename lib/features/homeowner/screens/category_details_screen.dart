@@ -7,6 +7,7 @@ import '../../../providers/database_provider.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../models/service_category_card.dart';
 import '../models/service.dart';
+import '../screens/broadcast_job_screen.dart';
 
 class CategoryDetailsScreen extends StatefulWidget {
   final ServiceCategoryCard category;
@@ -124,11 +125,41 @@ class _CategoryDetailsScreenState extends State<CategoryDetailsScreen> {
                         price: service.basePrice,
                         accentColor: widget.category.accentColor,
                         onTap: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/broadcast-job',
-                            arguments: {'service': service},
-                          );
+                          print('DEBUG: Service card tapped');
+                          print(
+                              'DEBUG: Service details - Name: ${service.name}, Price: ${service.basePrice}');
+                          try {
+                            print(
+                                'DEBUG: Converting CategoryService to Service');
+                            final convertedService = service.toService();
+                            print('DEBUG: Service converted successfully');
+                            print(
+                                'DEBUG: Attempting to navigate to broadcast-job screen');
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => BroadcastJobScreen(
+                                  service: convertedService,
+                                ),
+                              ),
+                            ).then((value) {
+                              print('DEBUG: Navigation result: $value');
+                            }).catchError((error) {
+                              print('ERROR: Navigation failed: $error');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text('Navigation error: $error')),
+                              );
+                            });
+                          } catch (e, stackTrace) {
+                            print('ERROR: Exception during navigation:');
+                            print(e);
+                            print('Stack trace:');
+                            print(stackTrace);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
                         },
                       ),
                     );
@@ -205,7 +236,15 @@ class _ServiceCardState extends State<_ServiceCard>
       onEnter: (_) => _handleHover(true),
       onExit: (_) => _handleHover(false),
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: () {
+          print('DEBUG: GestureDetector onTap triggered');
+          widget.onTap();
+        },
+        onTapDown: (_) => print('DEBUG: GestureDetector onTapDown triggered'),
+        onTapUp: (_) => print('DEBUG: GestureDetector onTapUp triggered'),
+        onTapCancel: () =>
+            print('DEBUG: GestureDetector onTapCancel triggered'),
+        behavior: HitTestBehavior.opaque, // Make sure it catches all taps
         child: ScaleTransition(
           scale: _scaleAnimation,
           child: Container(
