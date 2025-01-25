@@ -23,7 +23,7 @@ import '../features/homeowner/models/service.dart';
 // Import the USE_DEVELOPMENT_ENV constant
 
 class DatabaseProvider with ChangeNotifier {
-  final SupabaseClient _client = SupabaseConfig.client;
+  late final SupabaseClient _client;
   final AuthProvider _authProvider;
   List<Professional> _professionals = [];
   Homeowner? _currentHomeowner;
@@ -33,16 +33,30 @@ class DatabaseProvider with ChangeNotifier {
   String? _error;
 
   DatabaseProvider(this._authProvider) {
+    _client = _authProvider.client;
     _initialize();
     _authProvider.addListener(_onAuthStateChanged);
   }
 
   Future<void> _initialize() async {
     if (_isInitialized) return;
-    _isInitialized = true;
 
-    if (_authProvider.isAuthenticated) {
-      await loadInitialData();
+    try {
+      // Wait for auth to be initialized first
+      await _authProvider.initializationCompleted;
+
+      if (_authProvider.isAuthenticated) {
+        await loadInitialData();
+      }
+
+      _isInitialized = true;
+      notifyListeners();
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to initialize database provider', e, stackTrace);
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -246,24 +260,60 @@ class DatabaseProvider with ChangeNotifier {
     }
   }
 
-  double _calculateDistance(
-      double lat1, double lon1, double lat2, double lon2) {
+  double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    if (lat1 == 0 || lon1 == 0 || lat2 == 0 || lon2 == 0) {
+      LoggerService.debug(
+          'Invalid coordinates detected: ($lat1, $lon1) -> ($lat2, $lon2)');
+      return double.infinity;
+    }
+
     const double earthRadius = 6371; // Radius of the earth in km
-    final double dLat = _degreesToRadians(lat2 - lat1);
-    final double dLon = _degreesToRadians(lon2 - lon1);
 
+    // Convert degrees to radians
+    final double lat1Rad = lat1 * pi / 180;
+    final double lon1Rad = lon1 * pi / 180;
+    final double lat2Rad = lat2 * pi / 180;
+    final double lon2Rad = lon2 * pi / 180;
+
+    // Haversine formula
+    final double dLat = lat2Rad - lat1Rad;
+    final double dLon = lon2Rad - lon1Rad;
     final double a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(_degreesToRadians(lat1)) *
-            cos(_degreesToRadians(lat2)) *
-            sin(dLon / 2) *
-            sin(dLon / 2);
-
+        cos(lat1Rad) * cos(lat2Rad) * sin(dLon / 2) * sin(dLon / 2);
     final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    return earthRadius * c; // Distance in km
+    final double distance = earthRadius * c;
+
+    LoggerService.debug(
+        'Distance calculated: ${distance.toStringAsFixed(2)}km between ($lat1, $lon1) -> ($lat2, $lon2)');
+    return distance;
   }
 
-  double _degreesToRadians(double degrees) {
-    return degrees * (pi / 180.0);
+  Future<List<Professional>> findProfessionalsWithinRadius(
+      double lat, double lng, double radiusKm) async {
+    try {
+      if (!_authProvider.isAuthenticated) {
+        throw Exception('User must be authenticated to search professionals');
+      }
+
+      final professionals = _professionals.where((professional) {
+        if (professional.locationLat == null ||
+            professional.locationLng == null) {
+          return false;
+        }
+        final distance = calculateDistance(
+          lat,
+          lng,
+          professional.locationLat!,
+          professional.locationLng!,
+        );
+        return distance <= radiusKm;
+      }).toList();
+
+      return professionals;
+    } catch (e) {
+      LoggerService.error('Error finding professionals within radius: $e');
+      rethrow;
+    }
   }
 
   Future<void> addProfessional(Professional professional) async {
@@ -562,8 +612,7 @@ class DatabaseProvider with ChangeNotifier {
     }
   }
 
-  Future<void> updateProfessionalLocation(
-      double latitude, double longitude, double radiusKm) async {
+  Future<void> updateProfessionalLocation(double lat, double lng) async {
     try {
       if (!_authProvider.isAuthenticated) {
         throw Exception('User must be authenticated to update location');
@@ -575,15 +624,21 @@ class DatabaseProvider with ChangeNotifier {
       );
 
       await _client.from('professionals').update({
-        'location_lat': latitude,
-        'location_lng': longitude,
-        'radius_km': radiusKm,
+        'location_lat': lat,
+        'location_lng': lng,
       }).eq('id', professional.id);
 
-      await loadProfessionals();
-    } catch (e, stackTrace) {
-      LoggerService.error(
-          'Failed to update professional location', e, stackTrace);
+      // Update local state
+      final index = _professionals.indexWhere((p) => p.id == professional.id);
+      if (index != -1) {
+        _professionals[index] = professional.copyWith(
+          locationLat: lat,
+          locationLng: lng,
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      LoggerService.error('Error updating professional location: $e');
       rethrow;
     }
   }
@@ -1702,29 +1757,6 @@ class DatabaseProvider with ChangeNotifier {
         });
   }
 
-  double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    if (lat1 == 0 || lon1 == 0 || lat2 == 0 || lon2 == 0) {
-      LoggerService.debug(
-          'Invalid coordinates detected: ($lat1, $lon1) -> ($lat2, $lon2)');
-      return double.infinity;
-    }
-
-    const double earthRadius = 6371; // Radius of the earth in km
-    final double dLat = _degreesToRadians(lat2 - lat1);
-    final double dLon = _degreesToRadians(lon2 - lon1);
-    final double lat1Rad = _degreesToRadians(lat1);
-    final double lat2Rad = _degreesToRadians(lat2);
-
-    final double a = sin(dLat / 2) * sin(dLat / 2) +
-        sin(dLon / 2) * sin(dLon / 2) * cos(lat1Rad) * cos(lat2Rad);
-    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    final double distance = earthRadius * c;
-
-    LoggerService.debug(
-        'Distance calculated: ${distance.toStringAsFixed(2)}km between ($lat1, $lon1) -> ($lat2, $lon2)');
-    return distance;
-  }
-
   Future<List<Professional>> getProfessionals({
     String? searchQuery,
     List<String>? specialties,
@@ -1942,6 +1974,88 @@ class DatabaseProvider with ChangeNotifier {
           .toList();
     } catch (e) {
       LoggerService.error('Error loading service categories', e);
+      rethrow;
+    }
+  }
+
+  Future<int> countNearbyProfessionals({
+    required String serviceId,
+    required double lat,
+    required double lng,
+    required double radiusKm,
+  }) async {
+    try {
+      final response = await _client.rpc(
+        'count_nearby_professionals',
+        params: {
+          'service_id': serviceId,
+          'lat': lat,
+          'lng': lng,
+          'radius_km': radiusKm,
+        },
+      );
+      return response as int;
+    } catch (e) {
+      throw Exception('Failed to count nearby professionals: $e');
+    }
+  }
+
+  Future<void> createBroadcastJob({
+    required String title,
+    required String description,
+    required String serviceId,
+    required double hours,
+    required double pricePerHour,
+    required double lat,
+    required double lng,
+    required double radiusKm,
+  }) async {
+    try {
+      final homeowner = currentHomeowner;
+      if (homeowner == null) {
+        throw Exception('No homeowner profile found');
+      }
+
+      await _client.from('jobs').insert({
+        'title': title,
+        'description': description,
+        'status': 'awaiting_acceptance',
+        'date': DateTime.now().toIso8601String(),
+        'homeowner_id': homeowner.id,
+        'price': pricePerHour * hours,
+        'location_lat': lat,
+        'location_lng': lng,
+        'radius_km': radiusKm,
+        'request_type': 'broadcast',
+        'service_id': serviceId,
+        'payment_status': 'payment_pending',
+        'verification_status': 'verification_pending',
+      });
+    } catch (e) {
+      throw Exception('Failed to create broadcast job: $e');
+    }
+  }
+
+  Future<void> updateHomeownerLocation(double lat, double lng) async {
+    try {
+      if (_currentHomeowner == null) {
+        throw Exception('No homeowner logged in');
+      }
+
+      await _client.from('homeowners').update({
+        'location_lat': lat,
+        'location_lng': lng,
+      }).eq('id', _currentHomeowner!.id);
+
+      // Update local state
+      _currentHomeowner = _currentHomeowner!.copyWith(
+        locationLat: lat,
+        locationLng: lng,
+      );
+
+      notifyListeners();
+    } catch (e) {
+      LoggerService.error('Error updating homeowner location: $e');
       rethrow;
     }
   }
