@@ -5,10 +5,22 @@ import 'core/config/routes.dart';
 import 'core/constants/colors.dart';
 import 'core/services/supabase_config.dart';
 import 'features/auth/screens/login_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SupabaseConfig.initialize();
+
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey,
+    authOptions: FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    ),
+  );
+
   runApp(const MyApp());
 }
 
