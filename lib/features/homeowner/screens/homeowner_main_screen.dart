@@ -57,8 +57,7 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
           id: category.id,
           name: category.name,
           description: category.description ?? '',
-          iconName:
-              category.iconName ?? '0xe25d', // Default icon if none specified
+          iconName: category.iconName ?? 'default',
           serviceCount: 5, // TODO: Get actual count from database
           minPrice: 89.99, // TODO: Get actual price range from database
           maxPrice: 1999.99,
