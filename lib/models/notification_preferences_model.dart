@@ -1,113 +1,104 @@
-
 class NotificationPreferences {
-  final String id;
-  final String userId;
-  final bool emailNotifications;
-  final bool pushNotifications;
-  final bool smsNotifications;
   final bool jobUpdates;
-  final bool messageNotifications;
-  final bool paymentNotifications;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final bool messages;
+  final bool payments;
+  final bool promotions;
+  final bool quietHoursEnabled;
+  final int quietHoursStartHour;
+  final int quietHoursStartMinute;
+  final int quietHoursEndHour;
+  final int quietHoursEndMinute;
 
-  NotificationPreferences({
-    required this.id,
-    required this.userId,
-    required this.emailNotifications,
-    required this.pushNotifications,
-    required this.smsNotifications,
-    required this.jobUpdates,
-    required this.messageNotifications,
-    required this.paymentNotifications,
-    required this.createdAt,
-    required this.updatedAt,
+  const NotificationPreferences({
+    this.jobUpdates = true,
+    this.messages = true,
+    this.payments = true,
+    this.promotions = false,
+    this.quietHoursEnabled = false,
+    this.quietHoursStartHour = 22,
+    this.quietHoursStartMinute = 0,
+    this.quietHoursEndHour = 7,
+    this.quietHoursEndMinute = 0,
   });
 
   factory NotificationPreferences.fromJson(Map<String, dynamic> json) {
     return NotificationPreferences(
-      id: json['id'] as String,
-      userId: json['user_id'] as String,
-      emailNotifications: json['email_notifications'] as bool,
-      pushNotifications: json['push_notifications'] as bool,
-      smsNotifications: json['sms_notifications'] as bool,
-      jobUpdates: json['job_updates'] as bool,
-      messageNotifications: json['message_notifications'] as bool,
-      paymentNotifications: json['payment_notifications'] as bool,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      jobUpdates: json['job_updates'] as bool? ?? true,
+      messages: json['messages'] as bool? ?? true,
+      payments: json['payments'] as bool? ?? true,
+      promotions: json['promotions'] as bool? ?? false,
+      quietHoursEnabled: json['quiet_hours_enabled'] as bool? ?? false,
+      quietHoursStartHour: json['quiet_hours_start_hour'] as int? ?? 22,
+      quietHoursStartMinute: json['quiet_hours_start_minute'] as int? ?? 0,
+      quietHoursEndHour: json['quiet_hours_end_hour'] as int? ?? 7,
+      quietHoursEndMinute: json['quiet_hours_end_minute'] as int? ?? 0,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'user_id': userId,
-      'email_notifications': emailNotifications,
-      'push_notifications': pushNotifications,
-      'sms_notifications': smsNotifications,
-      'job_updates': jobUpdates,
-      'message_notifications': messageNotifications,
-      'payment_notifications': paymentNotifications,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        'job_updates': jobUpdates,
+        'messages': messages,
+        'payments': payments,
+        'promotions': promotions,
+        'quiet_hours_enabled': quietHoursEnabled,
+        'quiet_hours_start_hour': quietHoursStartHour,
+        'quiet_hours_start_minute': quietHoursStartMinute,
+        'quiet_hours_end_hour': quietHoursEndHour,
+        'quiet_hours_end_minute': quietHoursEndMinute,
+      };
 
   NotificationPreferences copyWith({
-    String? id,
-    String? userId,
-    bool? emailNotifications,
-    bool? pushNotifications,
-    bool? smsNotifications,
     bool? jobUpdates,
-    bool? messageNotifications,
-    bool? paymentNotifications,
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    bool? messages,
+    bool? payments,
+    bool? promotions,
+    bool? quietHoursEnabled,
+    int? quietHoursStartHour,
+    int? quietHoursStartMinute,
+    int? quietHoursEndHour,
+    int? quietHoursEndMinute,
   }) {
     return NotificationPreferences(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      emailNotifications: emailNotifications ?? this.emailNotifications,
-      pushNotifications: pushNotifications ?? this.pushNotifications,
-      smsNotifications: smsNotifications ?? this.smsNotifications,
       jobUpdates: jobUpdates ?? this.jobUpdates,
-      messageNotifications: messageNotifications ?? this.messageNotifications,
-      paymentNotifications: paymentNotifications ?? this.paymentNotifications,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      messages: messages ?? this.messages,
+      payments: payments ?? this.payments,
+      promotions: promotions ?? this.promotions,
+      quietHoursEnabled: quietHoursEnabled ?? this.quietHoursEnabled,
+      quietHoursStartHour: quietHoursStartHour ?? this.quietHoursStartHour,
+      quietHoursStartMinute:
+          quietHoursStartMinute ?? this.quietHoursStartMinute,
+      quietHoursEndHour: quietHoursEndHour ?? this.quietHoursEndHour,
+      quietHoursEndMinute: quietHoursEndMinute ?? this.quietHoursEndMinute,
     );
   }
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-
     return other is NotificationPreferences &&
-        other.id == id &&
-        other.userId == userId &&
-        other.emailNotifications == emailNotifications &&
-        other.pushNotifications == pushNotifications &&
-        other.smsNotifications == smsNotifications &&
         other.jobUpdates == jobUpdates &&
-        other.messageNotifications == messageNotifications &&
-        other.paymentNotifications == paymentNotifications &&
-        other.createdAt == createdAt &&
-        other.updatedAt == updatedAt;
+        other.messages == messages &&
+        other.payments == payments &&
+        other.promotions == promotions &&
+        other.quietHoursEnabled == quietHoursEnabled &&
+        other.quietHoursStartHour == quietHoursStartHour &&
+        other.quietHoursStartMinute == quietHoursStartMinute &&
+        other.quietHoursEndHour == quietHoursEndHour &&
+        other.quietHoursEndMinute == quietHoursEndMinute;
   }
 
   @override
-  int get hashCode => Object.hash(
-        id,
-        userId,
-        emailNotifications,
-        pushNotifications,
-        smsNotifications,
-        jobUpdates,
-        messageNotifications,
-        paymentNotifications,
-        createdAt,
-        updatedAt,
-      );
+  int get hashCode {
+    return Object.hash(
+      jobUpdates,
+      messages,
+      payments,
+      promotions,
+      quietHoursEnabled,
+      quietHoursStartHour,
+      quietHoursStartMinute,
+      quietHoursEndHour,
+      quietHoursEndMinute,
+    );
+  }
 }
