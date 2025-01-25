@@ -50,6 +50,7 @@ dependencies:
   material: ^1.0.0+2
   lottie: ^2.7.0
   flashy_tab_bar2: ^0.0.10
+  permission_handler: ^11.0.1
 
 dev_dependencies:
   flutter_test:
