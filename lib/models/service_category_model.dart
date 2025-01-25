@@ -1,30 +1,35 @@
-import 'package:flutter/foundation.dart';
-
 class ServiceCategory {
   final String id;
   final String name;
-  final String description;
-  final String? iconUrl;
+  final String? description;
+  final String? iconName;
   final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
 
-  const ServiceCategory({
+  ServiceCategory({
     required this.id,
     required this.name,
-    required this.description,
-    this.iconUrl,
+    this.description,
+    this.iconName,
     required this.createdAt,
-    required this.updatedAt,
+    this.updatedAt,
+    this.deletedAt,
   });
 
   factory ServiceCategory.fromJson(Map<String, dynamic> json) {
     return ServiceCategory(
       id: json['id'] as String,
       name: json['name'] as String,
-      description: json['description'] as String,
-      iconUrl: json['icon_url'] as String?,
+      description: json['description'] as String?,
+      iconName: json['icon_name'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
+      deletedAt: json['deleted_at'] != null
+          ? DateTime.parse(json['deleted_at'] as String)
+          : null,
     );
   }
 
@@ -33,9 +38,10 @@ class ServiceCategory {
       'id': id,
       'name': name,
       'description': description,
-      'icon_url': iconUrl,
+      'icon_name': iconName,
       'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+      'deleted_at': deletedAt?.toIso8601String(),
     };
   }
 
@@ -43,17 +49,19 @@ class ServiceCategory {
     String? id,
     String? name,
     String? description,
-    String? iconUrl,
+    String? iconName,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? deletedAt,
   }) {
     return ServiceCategory(
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
-      iconUrl: iconUrl ?? this.iconUrl,
+      iconName: iconName ?? this.iconName,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
     );
   }
 
@@ -64,9 +72,10 @@ class ServiceCategory {
         other.id == id &&
         other.name == name &&
         other.description == description &&
-        other.iconUrl == iconUrl &&
+        other.iconName == iconName &&
         other.createdAt == createdAt &&
-        other.updatedAt == updatedAt;
+        other.updatedAt == updatedAt &&
+        other.deletedAt == deletedAt;
   }
 
   @override
@@ -75,9 +84,10 @@ class ServiceCategory {
       id,
       name,
       description,
-      iconUrl,
+      iconName,
       createdAt,
       updatedAt,
+      deletedAt,
     );
   }
 }
