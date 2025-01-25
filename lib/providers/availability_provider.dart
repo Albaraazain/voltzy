@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/schedule_slot_model.dart';
-import '../core/utils/api_response.dart';
 import '../core/repositories/base_repository.dart';
 
 class AvailabilityProvider extends ChangeNotifier {
