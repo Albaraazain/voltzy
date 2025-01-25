@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/service_model.dart';
+import '../features/homeowner/models/service.dart';
 import '../providers/database_provider.dart';
 import '../core/services/logger_service.dart';
 import '../features/homeowner/screens/broadcast_request_map_screen.dart';
+import '../features/homeowner/screens/broadcast_job_screen.dart';
 
 class BroadcastRequestScreen extends StatefulWidget {
-  final Service service;
+  final CategoryService service;
 
   const BroadcastRequestScreen({
     super.key,
@@ -19,27 +20,14 @@ class BroadcastRequestScreen extends StatefulWidget {
 
 class _BroadcastRequestScreenState extends State<BroadcastRequestScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _priceController = TextEditingController();
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
-  double _radius = 10.0;
+  DateTime _selectedDate = DateTime.now();
+  TimeOfDay _selectedTime = TimeOfDay.now();
   bool _isLoading = false;
 
   @override
-  void initState() {
-    super.initState();
-    _titleController.text = widget.service.name;
-    if (widget.service.basePrice != null) {
-      _priceController.text = widget.service.basePrice!.toString();
-    }
-  }
-
-  @override
   void dispose() {
-    _titleController.dispose();
     _descriptionController.dispose();
-    _priceController.dispose();
     super.dispose();
   }
 
@@ -48,77 +36,69 @@ class _BroadcastRequestScreenState extends State<BroadcastRequestScreen> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
     );
     if (picked != null && picked != _selectedDate) {
-      final TimeOfDay? time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_selectedDate),
-      );
-      if (time != null) {
-        setState(() {
-          _selectedDate = DateTime(
-            picked.year,
-            picked.month,
-            picked.day,
-            time.hour,
-            time.minute,
-          );
-        });
-      }
+      setState(() {
+        _selectedDate = picked;
+      });
     }
   }
 
-  Future<void> _submitRequest() async {
+  Future<void> _selectTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+    );
+    if (picked != null && picked != _selectedTime) {
+      setState(() {
+        _selectedTime = picked;
+      });
+    }
+  }
+
+  Future<void> _broadcastRequest() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      final databaseProvider =
-          Provider.of<DatabaseProvider>(context, listen: false);
+      final databaseProvider = context.read<DatabaseProvider>();
+      final homeowner = databaseProvider.currentHomeowner;
 
-      final job = await databaseProvider.createJobRequest(
-        title: _titleController.text,
-        description: _descriptionController.text,
-        scheduledDate: _selectedDate,
-        price: double.parse(_priceController.text),
-        radiusKm: _radius,
-        requestType: 'broadcast',
+      if (homeowner == null) {
+        throw Exception('No homeowner profile found');
+      }
+
+      final scheduledFor = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
       );
 
-      if (!mounted) return;
-
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => BroadcastRequestMapScreen(
+          builder: (context) => BroadcastJobScreen(
             service: widget.service,
-            hours: widget.service.estimatedDuration ?? 60,
-            maxBudgetPerHour: double.parse(_priceController.text),
-            scheduledDate: _selectedDate,
-            scheduledTime: TimeOfDay.fromDateTime(_selectedDate),
-            additionalNotes: _descriptionController.text,
           ),
         ),
       );
-    } catch (e, stackTrace) {
-      LoggerService.error('Error creating broadcast request', e, stackTrace);
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to create request: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    } catch (e) {
+      LoggerService.error('Failed to broadcast request', e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to broadcast request. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -127,114 +107,82 @@ class _BroadcastRequestScreenState extends State<BroadcastRequestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Broadcast Request'),
-        elevation: 0,
+        title: const Text('Broadcast Request'),
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a title';
-                }
-                return null;
-              },
+            Text(
+              widget.service.name,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.service.description,
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.access_time),
+                const SizedBox(width: 8),
+                Text(
+                  'Duration: ${widget.service.durationHours} hours',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.attach_money),
+                const SizedBox(width: 8),
+                Text(
+                  'Base Price: \$${widget.service.basePrice.toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
             TextFormField(
               controller: _descriptionController,
               decoration: const InputDecoration(
-                labelText: 'Description',
-                border: OutlineInputBorder(),
+                labelText: 'Additional Details',
+                hintText: 'Describe your specific needs...',
               ),
               maxLines: 3,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter a description';
+                  return 'Please provide some details';
                 }
                 return null;
               },
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _priceController,
-              decoration: const InputDecoration(
-                labelText: 'Budget',
-                border: OutlineInputBorder(),
-                prefixText: '\$',
-              ),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your budget';
-                }
-                if (double.tryParse(value) == null) {
-                  return 'Please enter a valid number';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             ListTile(
-              title: const Text('Scheduled Date & Time'),
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Preferred Date'),
               subtitle: Text(
-                '${_selectedDate.toLocal()}'.split('.')[0],
-                style: Theme.of(context).textTheme.titleMedium,
+                '${_selectedDate.year}-${_selectedDate.month}-${_selectedDate.day}',
               ),
-              trailing: const Icon(Icons.calendar_today),
               onTap: _selectDate,
             ),
-            const SizedBox(height: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Search Radius: ${_radius.toStringAsFixed(1)} km',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Slider(
-                  value: _radius,
-                  min: 1,
-                  max: 50,
-                  divisions: 49,
-                  label: '${_radius.toStringAsFixed(1)} km',
-                  onChanged: (value) {
-                    setState(() {
-                      _radius = value;
-                    });
-                  },
-                ),
-              ],
+            ListTile(
+              leading: const Icon(Icons.access_time),
+              title: const Text('Preferred Time'),
+              subtitle: Text(_selectedTime.format(context)),
+              onTap: _selectTime,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _broadcastRequest,
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : const Text('Continue'),
             ),
           ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _submitRequest,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            child: _isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text('Create Broadcast Request'),
-          ),
         ),
       ),
     );
