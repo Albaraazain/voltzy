@@ -100,6 +100,7 @@ class MyApp extends StatelessWidget {
 
         return MaterialApp(
           title: 'Voltz',
+          debugShowCheckedModeBanner: false,
           theme: ThemeData(
             primaryColor: AppColors.primary,
             colorScheme: ColorScheme.fromSeed(
