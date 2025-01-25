@@ -124,8 +124,11 @@ class _CategoryDetailsScreenState extends State<CategoryDetailsScreen> {
                         price: service.basePrice,
                         accentColor: widget.category.accentColor,
                         onTap: () {
-                          // TODO: Navigate to service booking screen
-                          print('Tapped service: ${service.id}');
+                          Navigator.pushNamed(
+                            context,
+                            '/broadcast-job',
+                            arguments: {'service': service},
+                          );
                         },
                       ),
                     );
