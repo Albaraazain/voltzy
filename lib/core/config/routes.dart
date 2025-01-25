@@ -13,6 +13,7 @@ import '../../features/professional/screens/professional_main_screen.dart';
 import '../../features/professional/screens/schedule_screen.dart';
 import '../../models/professional_model.dart';
 import '../../models/service_model.dart';
+import '../../features/homeowner/models/service.dart';
 
 class AppRoutes {
   static Map<String, Widget Function(BuildContext)> getRoutes() {
@@ -64,15 +65,10 @@ class AppRoutes {
 
       case '/broadcast-job':
         final args = settings.arguments as Map<String, dynamic>;
+        final service = args['service'] as CategoryService;
         return MaterialPageRoute(
           builder: (_) => BroadcastJobScreen(
-            service: args['service'] as Service,
-            scheduledDate: args['scheduledDate'] as DateTime,
-            hours: args['hours'] as int,
-            budget: args['budget'] as double,
-            locationLat: args['locationLat'] as double,
-            locationLng: args['locationLng'] as double,
-            radiusKm: args['radiusKm'] as double,
+            service: service,
           ),
         );
 
