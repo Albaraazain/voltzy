@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'homeowner_model.dart';
+import 'profile_model.dart';
 
 @immutable
 class Review {
@@ -31,6 +32,10 @@ class Review {
   });
 
   factory Review.fromJson(Map<String, dynamic> json) {
+    final homeownerData = json['homeowner'] as Map<String, dynamic>;
+    final homeownerProfile =
+        Profile.fromJson(homeownerData['profile'] as Map<String, dynamic>);
+
     return Review(
       id: json['id'] as String,
       jobId: json['job_id'] as String,
@@ -45,7 +50,7 @@ class Review {
       response: json['response'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
-      homeowner: Homeowner.fromJson(json['homeowner']),
+      homeowner: Homeowner.fromJson(homeownerData, profile: homeownerProfile),
     );
   }
 
