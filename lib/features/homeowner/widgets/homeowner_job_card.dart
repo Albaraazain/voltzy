@@ -11,14 +11,14 @@ class HomeownerJobCard extends StatelessWidget {
   final VoidCallback? onViewProfessional;
 
   const HomeownerJobCard({
-    Key? key,
+    super.key,
     required this.job,
     this.onTap,
     this.onCancel,
     this.onReschedule,
     this.onReview,
     this.onViewProfessional,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -74,15 +74,15 @@ class HomeownerJobCard extends StatelessWidget {
                               color: AppColors.primary,
                             ),
                       ),
-                      if (job.professional!.rating != null) ...[
-                        const SizedBox(width: 8),
-                        Icon(Icons.star, size: 16, color: Colors.amber[700]),
-                        const SizedBox(width: 2),
-                        Text(
-                          job.professional!.rating!.toStringAsFixed(1),
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
+                      ...[
+                      const SizedBox(width: 8),
+                      Icon(Icons.star, size: 16, color: Colors.amber[700]),
+                      const SizedBox(width: 2),
+                      Text(
+                        job.professional!.rating.toStringAsFixed(1),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
                     ],
                   ),
                 ),
