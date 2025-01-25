@@ -138,7 +138,7 @@ class ProfessionalCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${professional.location!.address ?? 'Unknown location'}',
+                            professional.location!.address ?? 'Unknown location',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color:
                                   theme.colorScheme.onSurface.withOpacity(0.6),
