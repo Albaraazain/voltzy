@@ -17,5 +17,12 @@ class SupabaseConfig {
   static const String functionsUrl =
       'https://2acf-95-7-10-26.ngrok-free.app/functions/v1';
 
+  static final authConfig = AuthConfig(
+    authFlowType: AuthFlowType.pkce,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  );
+
   static SupabaseClient get client => Supabase.instance.client;
 }
