@@ -11,4 +11,8 @@ class BottomNavigationProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  void resetToHome() {
+    setIndex(0);
+  }
 }
