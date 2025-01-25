@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import '../../../models/service_model.dart';
 import '../../../models/job_model.dart';
 import '../../../providers/database_provider.dart';
-import '../../../core/constants/colors.dart';
-import '../../common/widgets/loading_indicator.dart';
 
 class BroadcastJobScreen extends StatefulWidget {
   final Service service;
@@ -16,7 +14,7 @@ class BroadcastJobScreen extends StatefulWidget {
   final double radiusKm;
 
   const BroadcastJobScreen({
-    Key? key,
+    super.key,
     required this.service,
     required this.scheduledDate,
     required this.hours,
@@ -24,7 +22,7 @@ class BroadcastJobScreen extends StatefulWidget {
     required this.locationLat,
     required this.locationLng,
     required this.radiusKm,
-  }) : super(key: key);
+  });
 
   @override
   State<BroadcastJobScreen> createState() => _BroadcastJobScreenState();
