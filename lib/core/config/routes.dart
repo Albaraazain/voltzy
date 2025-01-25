@@ -14,6 +14,7 @@ import '../../features/professional/screens/schedule_screen.dart';
 import '../../models/professional_model.dart';
 import '../../models/service_model.dart';
 import '../../features/homeowner/models/service.dart';
+import '../../features/homeowner/screens/homeowner_profile_screen.dart';
 
 class AppRoutes {
   static Map<String, Widget Function(BuildContext)> getRoutes() {
@@ -27,6 +28,7 @@ class AppRoutes {
       '/professional/main': (context) => const ProfessionalMainScreen(),
       '/homeowner/dashboard': (context) => const HomeownerMainScreen(),
       '/homeowner/main': (context) => const HomeownerMainScreen(),
+      '/homeowner/profile': (context) => const HomeownerProfileScreen(),
     };
   }
 
