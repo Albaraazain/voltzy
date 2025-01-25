@@ -1,27 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../../models/service_model.dart';
-import '../../../models/job_model.dart';
-import '../../../providers/database_provider.dart';
+import 'package:flutter/services.dart';
+import '../../../features/homeowner/models/service.dart';
+import '../../../core/theme/colors.dart';
+import '../../../core/utils/input_validators.dart';
+import 'broadcast_request_map_screen.dart';
 
 class BroadcastJobScreen extends StatefulWidget {
-  final Service service;
-  final DateTime scheduledDate;
-  final int hours;
-  final double budget;
-  final double locationLat;
-  final double locationLng;
-  final double radiusKm;
+  final CategoryService service;
 
   const BroadcastJobScreen({
     super.key,
     required this.service,
-    required this.scheduledDate,
-    required this.hours,
-    required this.budget,
-    required this.locationLat,
-    required this.locationLng,
-    required this.radiusKm,
   });
 
   @override
@@ -29,158 +18,191 @@ class BroadcastJobScreen extends StatefulWidget {
 }
 
 class _BroadcastJobScreenState extends State<BroadcastJobScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
+  final _hoursController = TextEditingController();
+  final _maxBudgetController = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Set initial hours based on service duration
+    _hoursController.text = widget.service.durationHours.toString();
+  }
 
   @override
   void dispose() {
     _descriptionController.dispose();
+    _hoursController.dispose();
+    _maxBudgetController.dispose();
     super.dispose();
   }
 
-  Future<void> _submitRequest() async {
-    if (_isLoading) return;
+  void _onSubmit() {
+    if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    final hours = double.parse(_hoursController.text);
+    final maxBudgetPerHour = double.parse(_maxBudgetController.text);
+    final description = _descriptionController.text;
 
-    try {
-      final provider = context.read<DatabaseProvider>();
-      await provider.createJobRequest(
-        title: widget.service.name,
-        description: _descriptionController.text.trim(),
-        scheduledDate: widget.scheduledDate,
-        price: widget.budget,
-        locationLat: widget.locationLat,
-        locationLng: widget.locationLng,
-        radiusKm: widget.radiusKm,
-        requestType: Job.REQUEST_TYPE_BROADCAST,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Request broadcasted successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to broadcast request: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BroadcastRequestMapScreen(
+          service: widget.service,
+          hours: hours,
+          maxBudgetPerHour: maxBudgetPerHour,
+          description: description,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Review Broadcast'),
+        title: const Text('Job Details'),
+        elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
-            Text(
-              'Service Details',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            _buildDetailRow('Service', widget.service.name),
-            _buildDetailRow(
-              'Date',
-              '${widget.scheduledDate.year}-${widget.scheduledDate.month.toString().padLeft(2, '0')}-${widget.scheduledDate.day.toString().padLeft(2, '0')}',
-            ),
-            _buildDetailRow(
-              'Time',
-              '${widget.scheduledDate.hour.toString().padLeft(2, '0')}:${widget.scheduledDate.minute.toString().padLeft(2, '0')}',
-            ),
-            _buildDetailRow('Duration', '${widget.hours} hours'),
-            _buildDetailRow('Budget', '\$${widget.budget.toStringAsFixed(2)}'),
-            _buildDetailRow(
-                'Search Radius', '${widget.radiusKm.toStringAsFixed(1)} km'),
-            const SizedBox(height: 24),
-            Text(
-              'Additional Details',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _descriptionController,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: 'Add any specific requirements or details...',
-                border: OutlineInputBorder(),
+            // Service Info Card
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.service.name,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.service.description,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Base Price: \$${widget.service.basePrice.toStringAsFixed(2)}',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: AppColors.primary,
+                                  ),
+                        ),
+                        Text(
+                          'Min. Duration: ${widget.service.durationHours}h',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
+            ),
+            const SizedBox(height: 24),
+
+            // Hours Needed
+            TextFormField(
+              controller: _hoursController,
+              decoration: const InputDecoration(
+                labelText: 'Hours Needed',
+                hintText: 'Enter number of hours',
+                prefixIcon: Icon(Icons.access_time),
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
+              ],
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter hours needed';
+                }
+                final hours = double.tryParse(value);
+                if (hours == null) {
+                  return 'Please enter a valid number';
+                }
+                if (hours < widget.service.durationHours) {
+                  return 'Hours must be at least ${widget.service.durationHours}';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Max Budget per Hour
+            TextFormField(
+              controller: _maxBudgetController,
+              decoration: const InputDecoration(
+                labelText: 'Maximum Budget per Hour',
+                hintText: 'Enter maximum hourly rate',
+                prefixIcon: Icon(Icons.attach_money),
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
+              ],
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter maximum budget per hour';
+                }
+                final budget = double.tryParse(value);
+                if (budget == null) {
+                  return 'Please enter a valid number';
+                }
+                if (budget < widget.service.basePrice) {
+                  return 'Budget must be at least \$${widget.service.basePrice}';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Job Description
+            TextFormField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Job Description',
+                hintText: 'Describe your specific needs...',
+                prefixIcon: Icon(Icons.description),
+              ),
+              maxLines: 3,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please provide a job description';
+                }
+                if (value.length < 10) {
+                  return 'Description must be at least 10 characters';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 24),
+
+            ElevatedButton(
+              onPressed: _isLoading ? null : _onSubmit,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('Continue to Search'),
             ),
           ],
         ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _submitRequest,
-            child: _isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text('Broadcast Request'),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
