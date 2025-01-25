@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 @immutable
-class Service {
+class CategoryService {
   final String id;
   final String name;
   final String description;
@@ -12,7 +12,7 @@ class Service {
   final DateTime? updatedAt;
   final DateTime? deletedAt;
 
-  const Service({
+  const CategoryService({
     required this.id,
     required this.name,
     required this.description,
@@ -24,8 +24,8 @@ class Service {
     this.deletedAt,
   });
 
-  factory Service.fromJson(Map<String, dynamic> json) {
-    return Service(
+  factory CategoryService.fromJson(Map<String, dynamic> json) {
+    return CategoryService(
       id: json['id'] as String,
       name: json['name'] as String,
       description: json['description'] as String,
