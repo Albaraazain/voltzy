@@ -33,7 +33,7 @@ class ServiceDetailsScreen extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  IconMapper.getCategoryIcon(category.name),
+                  IconMapper.getIcon(category.name),
                   size: 20,
                   color: AppColors.textSecondary,
                 ),
