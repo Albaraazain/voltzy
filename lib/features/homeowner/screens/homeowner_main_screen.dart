@@ -6,6 +6,7 @@ import '../../../providers/database_provider.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../models/service_category_card.dart';
 import '../widgets/service_categories_grid.dart';
+import '../screens/category_details_screen.dart';
 
 class HomeownerMainScreen extends StatefulWidget {
   const HomeownerMainScreen({super.key});
@@ -81,8 +82,13 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
   }
 
   void _handleCategoryTap(String categoryId) {
-    // TODO: Navigate to category detail screen
-    print('Tapped category: $categoryId');
+    final category = _categories.firstWhere((c) => c.id == categoryId);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CategoryDetailsScreen(category: category),
+      ),
+    );
   }
 
   @override
