@@ -10,19 +10,22 @@ enum UserType { professional, homeowner, none }
 class AuthProvider extends ChangeNotifier {
   StreamSubscription<AuthState>? _authStateSubscription;
   late final Future<void> initializationCompleted;
+  final SupabaseClient _client;
 
   bool _isAuthenticated = false;
   UserType _userType = UserType.none;
   User? _user;
   Map<String, dynamic>? _profile;
-
-  final SupabaseClient _client;
+  bool _isInitialized = false;
   models.Profile? _profileModel;
 
   AuthProvider(this._client) {
     // Initialize the completion future
     initializationCompleted = _initializeAuth();
   }
+
+  // Expose client safely
+  SupabaseClient get client => _client;
 
   bool get isAuthenticated => _isAuthenticated;
   UserType get userType => _userType;
@@ -31,15 +34,25 @@ class AuthProvider extends ChangeNotifier {
   String? get userId => _user?.id;
   String? get email => _user?.email;
   String? get fullName => _profile?['name'];
+  bool get isInitialized => _isInitialized;
 
   Future<void> _initializeAuth() async {
+    if (_isInitialized) return;
+
     try {
+      LoggerService.info('🔄 Starting auth initialization...');
+
       // Listen to auth state changes
       _authStateSubscription =
           _client.auth.onAuthStateChange.listen((event) async {
+        LoggerService.debug('Auth state changed: ${event.event}');
+
         if (event.event == AuthChangeEvent.signedIn) {
           _user = event.session?.user;
-          await _loadProfile(_user!.id);
+          _isAuthenticated = true;
+          if (_user != null) {
+            await _loadProfile(_user!.id);
+          }
         } else if (event.event == AuthChangeEvent.signedOut) {
           _isAuthenticated = false;
           _userType = UserType.none;
@@ -53,10 +66,16 @@ class AuthProvider extends ChangeNotifier {
       final session = _client.auth.currentSession;
       _user = session?.user;
       if (_user != null) {
+        _isAuthenticated = true;
         await _loadProfile(_user!.id);
       }
+
+      _isInitialized = true;
+      LoggerService.info('✅ Auth initialization completed');
+      notifyListeners();
     } catch (e, stackTrace) {
-      LoggerService.error('Failed to initialize auth', e, stackTrace);
+      LoggerService.error('❌ Failed to initialize auth', e, stackTrace);
+      rethrow;
     }
   }
 
