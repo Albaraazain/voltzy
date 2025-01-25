@@ -233,29 +233,85 @@ class DatabaseProvider with ChangeNotifier {
 
   Future<void> loadProfessionals() async {
     try {
+      LoggerService.debug('🔄 Starting to load professionals...');
+
       final response = await _client.from('professionals').select('''
         *,
-        profile:profiles (*)
+        profile:profiles!professionals_profile_id_fkey (*),
+        services:professional_services (
+          service:services (*)
+        )
       ''');
+
+      LoggerService.debug(
+          '📥 Received ${response.length} professionals from database');
 
       final List<Professional> professionals = [];
       for (final row in response) {
         try {
-          final profile = profile_models.Profile.fromJson(
-              row['profile'] as Map<String, dynamic>);
-          if (profile.userType == profile_models.UserType.professional) {
-            professionals.add(Professional.fromJson(row));
+          if (row['profile'] == null) {
+            LoggerService.error(
+                '❌ Professional has no profile data: ${row['id']}');
+            continue;
           }
-        } catch (e) {
-          LoggerService.error('Failed to parse professional data', e);
-          continue;
+
+          final profileData = row['profile'] as Map<String, dynamic>;
+          LoggerService.debug(
+              '📋 Processing professional ${row['id']} with profile data: $profileData');
+
+          final profile = profile_models.Profile.fromJson(profileData);
+
+          if (profile.userType == profile_models.UserType.professional) {
+            try {
+              // Extract services from the junction table data
+              final services = (row['services'] as List<dynamic>?)
+                      ?.map((s) => Service.fromJson(
+                          s['service'] as Map<String, dynamic>))
+                      .toList() ??
+                  [];
+
+              // Combine profile data with professional data
+              final professionalData = {
+                ...row,
+                'name': profile.name,
+                'email': profile.email,
+                'created_at':
+                    row['created_at'] ?? profile.createdAt.toIso8601String(),
+                'updated_at':
+                    row['updated_at'] ?? DateTime.now().toIso8601String(),
+                'profile': profile.toJson(),
+                'services': services,
+              };
+
+              LoggerService.debug(
+                  '🔨 Constructed professional data: $professionalData');
+
+              professionals.add(Professional.fromJson(professionalData));
+              LoggerService.debug(
+                  '✅ Successfully added professional ${row['id']}');
+            } catch (e, stackTrace) {
+              LoggerService.error(
+                '❌ Failed to parse professional data for ID: ${row['id']}',
+                e,
+                stackTrace,
+              );
+            }
+          }
+        } catch (e, stackTrace) {
+          LoggerService.error(
+            '❌ Failed to parse profile data for professional',
+            e,
+            stackTrace,
+          );
         }
       }
 
       _professionals = professionals;
+      LoggerService.info(
+          '✅ Successfully loaded ${professionals.length} professionals');
       notifyListeners();
-    } catch (e) {
-      LoggerService.error('Failed to load professionals', e);
+    } catch (e, stackTrace) {
+      LoggerService.error('❌ Failed to load professionals list', e, stackTrace);
       rethrow;
     }
   }
@@ -665,28 +721,26 @@ class DatabaseProvider with ChangeNotifier {
   Future<void> updateProfessionalServices(
       String professionalId, List<String> serviceIds) async {
     try {
+      // Delete existing service relationships
       await _client
           .from('professional_services')
           .delete()
           .eq('professional_id', professionalId);
 
-      for (final serviceId in serviceIds) {
-        await _client.from('professional_services').insert({
-          'professional_id': professionalId,
-          'service_id': serviceId,
-        });
+      // Insert new service relationships
+      if (serviceIds.isNotEmpty) {
+        final serviceRelations = serviceIds
+            .map((serviceId) => {
+                  'professional_id': professionalId,
+                  'service_id': serviceId,
+                })
+            .toList();
+
+        await _client.from('professional_services').insert(serviceRelations);
       }
 
       // Update local state
-      final index = _professionals.indexWhere((p) => p.id == professionalId);
-      if (index != -1) {
-        final services = await Future.wait(
-          serviceIds.map((id) => getService(id).then((res) => res.data!)),
-        );
-        _professionals[index] =
-            _professionals[index].copyWith(services: services);
-        notifyListeners();
-      }
+      await loadProfessionals();
     } catch (e) {
       LoggerService.error('Failed to update professional services', e);
       rethrow;
