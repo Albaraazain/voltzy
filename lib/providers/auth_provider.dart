@@ -50,7 +50,7 @@ class AuthProvider extends ChangeNotifier {
       });
 
       // Check if user is already signed in
-      final session = await _client.auth.currentSession;
+      final session = _client.auth.currentSession;
       _user = session?.user;
       if (_user != null) {
         await _loadProfile(_user!.id);
@@ -62,16 +62,22 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _loadProfile(String userId) async {
     try {
+      LoggerService.debug('📥 Loading profile data for user ID: $userId');
       final response =
           await _client.from('profiles').select().eq('id', userId).single();
 
+      LoggerService.debug('Converting profile data to model...');
       _profileModel = models.Profile.fromJson(response);
+
       _isAuthenticated = true;
       _userType = _convertUserType(_profileModel!.userType);
       _profile = _profileModel!.toJson();
-      notifyListeners();
-    } catch (e) {
-      LoggerService.error('Error loading profile', e);
+
+      LoggerService.info('✅ Profile loaded successfully');
+      LoggerService.debug(
+          'Profile details: ${_profile!['name']} (${_profile!['user_type']})');
+    } catch (e, stackTrace) {
+      LoggerService.error('❌ Failed to load profile', e, stackTrace);
       rethrow;
     }
   }
@@ -103,19 +109,32 @@ class AuthProvider extends ChangeNotifier {
     required String password,
   }) async {
     try {
+      LoggerService.info(
+          '🔐 Starting sign-in process for email: ${email.split('@')[0]}@***');
+
+      LoggerService.debug('Attempting to sign in with Supabase auth...');
       final response = await _client.auth.signInWithPassword(
         email: email,
         password: password,
       );
 
       if (response.user == null) {
+        LoggerService.error(
+            'Sign-in failed: No user returned from auth response');
         throw 'Invalid credentials';
       }
 
+      LoggerService.info('✅ Auth successful, user ID: ${response.user!.id}');
+      LoggerService.debug('Loading user profile...');
+
       await _loadProfile(response.user!.id);
+      LoggerService.info(
+          '👤 Profile loaded successfully. User type: $_userType');
+
       notifyListeners();
-    } catch (e) {
-      LoggerService.error('Error signing in', e);
+      LoggerService.info('🎉 Sign-in process completed successfully');
+    } catch (e, stackTrace) {
+      LoggerService.error('❌ Sign-in failed', e, stackTrace);
       rethrow;
     }
   }
