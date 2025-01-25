@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/providers.dart';
 import 'core/config/routes.dart';
 import 'core/constants/colors.dart';
-import 'core/services/supabase_config.dart';
+import 'core/config/supabase_config.dart';
 import 'features/auth/screens/login_screen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,8 +13,6 @@ void main() async {
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
-    authFlowType: AuthFlowType.pkce,
-    debug: true,
   );
 
   runApp(const MyApp());
