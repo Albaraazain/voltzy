@@ -33,7 +33,7 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
       final latLng = LatLng(location.latitude, location.longitude);
       _updateMarker(latLng);
       _mapController?.animateCamera(CameraUpdate.newLatLngZoom(latLng, 15));
-        } catch (e) {
+    } catch (e) {
       LoggerService.error('Error getting current location: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to get current location')),
@@ -66,7 +66,6 @@ class _LocationSettingsScreenState extends State<LocationSettingsScreen> {
       await dbProvider.updateProfessionalLocation(
         _selectedLocation!.latitude,
         _selectedLocation!.longitude,
-        5.0, // Default radius of 5km
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
