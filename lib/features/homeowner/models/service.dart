@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../models/service_model.dart';
 
 @immutable
 class CategoryService {
@@ -23,6 +24,19 @@ class CategoryService {
     this.updatedAt,
     this.deletedAt,
   });
+
+  Service toService() {
+    return Service(
+      id: id,
+      categoryId: categoryId,
+      name: name,
+      description: description,
+      basePrice: basePrice,
+      estimatedDuration: (durationHours * 60).round(),
+      createdAt: createdAt ?? DateTime.now(),
+      updatedAt: updatedAt ?? DateTime.now(),
+    );
+  }
 
   factory CategoryService.fromJson(Map<String, dynamic> json) {
     return CategoryService(
