@@ -91,4 +91,14 @@ class Profile {
         createdAt,
         lastLoginAt,
       );
+
+  factory Profile.empty() {
+    return Profile(
+      id: '',
+      email: '',
+      userType: UserType.homeowner,
+      name: '',
+      createdAt: DateTime.now(),
+    );
+  }
 }
