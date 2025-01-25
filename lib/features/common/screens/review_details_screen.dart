@@ -5,9 +5,9 @@ class ReviewDetailsScreen extends StatelessWidget {
   final Review review;
 
   const ReviewDetailsScreen({
-    Key? key,
+    super.key,
     required this.review,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
