@@ -126,9 +126,19 @@ class DirectRequestProvider extends ChangeNotifier {
         'status': DirectRequest.STATUS_PENDING,
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
-      }).select();
+      }).select('''
+            *,
+            homeowner:homeowner_id(
+              *,
+              profile:profile_id(*)
+            ),
+            professional:professional_id(
+              *,
+              profile:profile_id(*)
+            )
+          ''').single();
 
-      final newRequest = DirectRequest.fromJson(response.first);
+      final newRequest = DirectRequest.fromJson(response);
       _requests.insert(0, newRequest);
     } catch (e) {
       _error = e.toString();
@@ -272,10 +282,18 @@ class DirectRequestProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      final response = await Supabase.instance.client
-          .from('direct_requests')
-          .select()
-          .eq('professional_id', professionalId);
+      final response =
+          await Supabase.instance.client.from('direct_requests').select('''
+            *,
+            homeowner:homeowner_id(
+              *,
+              profile:profile_id(*)
+            ),
+            professional:professional_id(
+              *,
+              profile:profile_id(*)
+            )
+          ''').eq('professional_id', professionalId);
 
       _requests.clear();
       _requests.addAll(
@@ -311,8 +329,17 @@ class DirectRequestProvider extends ChangeNotifier {
           .from('direct_requests')
           .update(data)
           .eq('id', requestId)
-          .select()
-          .single();
+          .select('''
+            *,
+            homeowner:homeowner_id(
+              *,
+              profile:profile_id(*)
+            ),
+            professional:professional_id(
+              *,
+              profile:profile_id(*)
+            )
+          ''').single();
 
       if (status == DirectRequest.STATUS_ACCEPTED) {
         // Create job when request is accepted
@@ -364,7 +391,17 @@ class DirectRequestProvider extends ChangeNotifier {
             'alternative_message': message,
           })
           .eq('id', requestId)
-          .select()
+          .select('''
+            *,
+            homeowner:homeowner_id(
+              *,
+              profile:profile_id(*)
+            ),
+            professional:professional_id(
+              *,
+              profile:profile_id(*)
+            )
+          ''')
           .single();
 
       final index = _requests.indexWhere((r) => r.id == requestId);
@@ -401,8 +438,17 @@ class DirectRequestProvider extends ChangeNotifier {
           .from('direct_requests')
           .update(data)
           .eq('id', requestId)
-          .select()
-          .single();
+          .select('''
+            *,
+            homeowner:homeowner_id(
+              *,
+              profile:profile_id(*)
+            ),
+            professional:professional_id(
+              *,
+              profile:profile_id(*)
+            )
+          ''').single();
 
       final index = _requests.indexWhere((r) => r.id == requestId);
       if (index != -1) {
