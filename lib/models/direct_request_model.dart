@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'professional_model.dart';
 import 'homeowner_model.dart';
+import 'profile_model.dart';
 
 @immutable
 class DirectRequest {
@@ -23,6 +24,7 @@ class DirectRequest {
   final Professional? professional;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final Profile profile;
 
   String get homeownerId => homeowner?.id ?? '';
   String get professionalId => professional?.id ?? '';
@@ -65,24 +67,38 @@ class DirectRequest {
     this.professional,
     required this.createdAt,
     required this.updatedAt,
+    required this.profile,
   });
 
   factory DirectRequest.fromJson(Map<String, dynamic> json) {
+    final homeownerData = json['homeowner'] as Map<String, dynamic>?;
+    final professionalData = json['professional'] as Map<String, dynamic>?;
+
+    // Get profile from either homeowner or professional
+    final homeownerProfile = homeownerData != null
+        ? Profile.fromJson(homeownerData['profile'] as Map<String, dynamic>)
+        : null;
+
     return DirectRequest(
       id: json['id'] as String,
       status: json['status'] as String,
-      message: json['message'] as String,
-      date: DateTime.parse(json['date'] as String),
-      time: json['time'] as String,
+      message: json['description'] as String,
+      date: DateTime.parse(json['preferred_date'] as String),
+      time: json['preferred_time'] as String,
       declineReason: json['decline_reason'] as String?,
-      homeowner: json['homeowner'] != null
-          ? Homeowner.fromJson(json['homeowner'] as Map<String, dynamic>)
+      homeowner: homeownerData != null
+          ? Homeowner.fromJson(homeownerData, profile: homeownerProfile!)
           : null,
-      professional: json['professional'] != null
-          ? Professional.fromJson(json['professional'] as Map<String, dynamic>)
+      professional: professionalData != null
+          ? Professional.fromJson(professionalData)
           : null,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      profile: homeownerProfile ??
+          (professionalData != null
+              ? Profile.fromJson(
+                  professionalData['profile'] as Map<String, dynamic>)
+              : Profile.empty()),
     );
   }
 
@@ -90,12 +106,12 @@ class DirectRequest {
     return {
       'id': id,
       'status': status,
-      'message': message,
-      'date': date.toIso8601String(),
-      'time': time,
+      'description': message,
+      'preferred_date': date.toIso8601String(),
+      'preferred_time': time,
       'decline_reason': declineReason,
-      'homeowner': homeowner?.toJson(),
-      'professional': professional?.toJson(),
+      'homeowner_id': homeowner?.id,
+      'professional_id': professional?.id,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -112,6 +128,7 @@ class DirectRequest {
     Professional? professional,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Profile? profile,
   }) {
     return DirectRequest(
       id: id ?? this.id,
@@ -124,6 +141,7 @@ class DirectRequest {
       professional: professional ?? this.professional,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      profile: profile ?? this.profile,
     );
   }
 
@@ -140,7 +158,8 @@ class DirectRequest {
         other.homeowner == homeowner &&
         other.professional == professional &&
         other.createdAt == createdAt &&
-        other.updatedAt == updatedAt;
+        other.updatedAt == updatedAt &&
+        other.profile == profile;
   }
 
   @override
@@ -156,6 +175,7 @@ class DirectRequest {
       professional,
       createdAt,
       updatedAt,
+      profile,
     );
   }
 }
