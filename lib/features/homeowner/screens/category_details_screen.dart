@@ -120,8 +120,8 @@ class _CategoryDetailsScreenState extends State<CategoryDetailsScreen> {
                       child: _ServiceCard(
                         name: service.name,
                         description: service.description,
-                        duration: service.duration.toString(),
-                        price: service.price,
+                        duration: service.durationHours.toString(),
+                        price: service.basePrice,
                         accentColor: widget.category.accentColor,
                         onTap: () {
                           // TODO: Navigate to service booking screen
