@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:voltz/features/common/widgets/loading_indicator.dart';
-import '../models/category_model.dart';
-import '../models/service_model.dart';
-import '../models/job_model.dart';
+import '../core/widgets/loading_indicator.dart';
 import '../features/homeowner/models/service.dart';
+import '../models/category_model.dart';
 import '../providers/database_provider.dart';
 import '../core/services/logger_service.dart';
 import '../widgets/error_view.dart';
 import '../features/homeowner/screens/broadcast_job_screen.dart';
-import 'broadcast_request_screen.dart';
 
 class CategoryServicesScreen extends StatefulWidget {
   final Category category;
@@ -37,17 +34,6 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
         Provider.of<DatabaseProvider>(context, listen: false);
     _servicesFuture =
         databaseProvider.getServicesByCategory(widget.category.id);
-  }
-
-  void _navigateToBroadcastRequest(CategoryService service) async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => BroadcastJobScreen(
-          service: service,
-        ),
-      ),
-    );
   }
 
   @override
@@ -95,7 +81,16 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
                 elevation: 2,
                 margin: const EdgeInsets.only(bottom: 16),
                 child: InkWell(
-                  onTap: () => _navigateToBroadcastRequest(service),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BroadcastJobScreen(
+                          service: service.toService(),
+                        ),
+                      ),
+                    );
+                  },
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -108,43 +103,38 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
                                     fontWeight: FontWeight.bold,
                                   ),
                         ),
-                        if (service.description != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            service.description!,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
+                        const SizedBox(height: 8),
+                        Text(
+                          service.description,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            if (service.basePrice != null)
-                              Text(
-                                'Starting from \$${service.basePrice!.toStringAsFixed(2)}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      color: Theme.of(context).primaryColor,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                            if (service.durationHours != null)
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.access_time,
-                                    size: 16,
+                            Text(
+                              'Starting from \$${service.basePrice.toStringAsFixed(2)}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context).primaryColor,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${service.durationHours} hours',
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ],
-                              ),
+                            ),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.access_time,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${service.durationHours} hours',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ],
