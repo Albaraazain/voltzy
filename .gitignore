@@ -123,3 +123,4 @@ coverage_badge.svg
 # iOS
 ios/Pods/
 ios/Podfile.lock
+lib/core/config/maps_config.dart
