@@ -20,12 +20,12 @@ class SupabaseConfig {
   static String get url => _url;
   static String get anonKey => _anonKey;
 
-  static final authConfig = AuthConfig(
-    authFlowType: AuthFlowType.pkce,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  );
-
-  static SupabaseClient get client => Supabase.instance.client;
+  static SupabaseClient get client {
+    try {
+      return Supabase.instance.client;
+    } catch (e) {
+      throw Exception(
+          'Supabase client not initialized. Make sure to call Supabase.initialize() first.');
+    }
+  }
 }
