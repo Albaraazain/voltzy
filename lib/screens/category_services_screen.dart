@@ -4,9 +4,11 @@ import 'package:voltz/features/common/widgets/loading_indicator.dart';
 import '../models/category_model.dart';
 import '../models/service_model.dart';
 import '../models/job_model.dart';
+import '../features/homeowner/models/service.dart';
 import '../providers/database_provider.dart';
 import '../core/services/logger_service.dart';
 import '../widgets/error_view.dart';
+import '../features/homeowner/screens/broadcast_job_screen.dart';
 import 'broadcast_request_screen.dart';
 
 class CategoryServicesScreen extends StatefulWidget {
@@ -22,7 +24,7 @@ class CategoryServicesScreen extends StatefulWidget {
 }
 
 class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
-  late Future<List<Service>> _servicesFuture;
+  late Future<List<CategoryService>> _servicesFuture;
 
   @override
   void initState() {
@@ -37,26 +39,15 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
         databaseProvider.getServicesByCategory(widget.category.id);
   }
 
-  void _navigateToBroadcastRequest(Service service) async {
-    final job = await Navigator.push<Job>(
+  void _navigateToBroadcastRequest(CategoryService service) async {
+    Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BroadcastRequestScreen(
+        builder: (context) => BroadcastJobScreen(
           service: service,
         ),
       ),
     );
-
-    if (job != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Your request has been broadcasted to nearby professionals'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context, job);
-    }
   }
 
   @override
@@ -66,7 +57,7 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
         title: Text(widget.category.name),
         elevation: 0,
       ),
-      body: FutureBuilder<List<Service>>(
+      body: FutureBuilder<List<CategoryService>>(
         future: _servicesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -139,7 +130,7 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
                                       fontWeight: FontWeight.bold,
                                     ),
                               ),
-                            if (service.estimatedDuration != null)
+                            if (service.durationHours != null)
                               Row(
                                 children: [
                                   const Icon(
@@ -148,7 +139,7 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '${service.estimatedDuration} min',
+                                    '${service.durationHours} hours',
                                     style:
                                         Theme.of(context).textTheme.bodyMedium,
                                   ),
