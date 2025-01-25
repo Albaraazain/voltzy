@@ -5,6 +5,7 @@ import '../../../core/constants/text_styles.dart';
 import '../../../providers/auth_provider.dart';
 import '../../common/widgets/custom_text_field.dart';
 import '../../common/widgets/loading_indicator.dart';
+import '../../../services/logger_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,24 +29,57 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      LoggerService.warning('⚠️ Form validation failed');
+      return;
+    }
 
     setState(() => _isLoading = true);
+    LoggerService.info('🔄 Starting login process...');
 
     try {
+      LoggerService.debug('📝 Form validated, attempting sign in');
       await context.read<AuthProvider>().signIn(
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
+
+      LoggerService.info('✅ Login successful');
+
+      if (!mounted) return;
+
+      // Get the user type to determine where to navigate
+      final userType = context.read<AuthProvider>().userType;
+      LoggerService.debug(
+          '🧭 Navigating to main screen for user type: $userType');
+
+      Navigator.pushReplacementNamed(
+        context,
+        userType == UserType.homeowner
+            ? '/homeowner/main'
+            : '/professional/main',
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: AppColors.error,
-          ),
-        );
+      LoggerService.error('❌ Login failed', e);
+      if (!mounted) return;
+
+      String errorMessage = 'An error occurred during sign in';
+      if (e.toString().contains('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password';
+      } else if (e.toString().contains('network')) {
+        errorMessage = 'Network error. Please check your connection';
+      } else if (e.toString().contains('too many requests')) {
+        errorMessage = 'Too many attempts. Please try again later';
       }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
