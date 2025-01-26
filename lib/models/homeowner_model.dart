@@ -52,7 +52,6 @@ class Homeowner {
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'profile_id': profile.id,
         'phone': phone,
         'address': address,
         'preferred_contact_method': preferredContactMethod,
