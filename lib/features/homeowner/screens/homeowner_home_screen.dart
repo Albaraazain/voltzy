@@ -415,11 +415,54 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
   }
 
   Widget _buildServiceCard(String title, MaterialColor color, Widget icon) {
+    String imagePath = 'assets/images/';
+    switch (title.toLowerCase()) {
+      case 'electrical':
+        imagePath += 'electrical_services.png';
+        break;
+      case 'plumbing':
+        imagePath += 'plumbing_services.png';
+        break;
+      case 'hvac':
+        imagePath += 'hvac_services.png';
+        break;
+      case 'landscaping':
+        imagePath += 'landscaping_services.png';
+        break;
+      case 'security systems':
+      case 'security':
+        imagePath += 'security_services.png';
+        break;
+      case 'smart home':
+        imagePath += 'smart_home_services.png';
+        break;
+      case 'home cleaning':
+      case 'cleaning':
+        imagePath += 'home_cleaning_services.png';
+        break;
+      case 'carpentry':
+        imagePath += 'carbentry_services.png';
+        break;
+      case 'painting':
+        imagePath += 'painting_services.png';
+        break;
+      case 'solar services':
+      case 'solar':
+        imagePath += 'solar_services.png';
+        break;
+      case 'appliance repair':
+      case 'appliance':
+        imagePath += 'appliance_repair_services.png';
+        break;
+      default:
+        imagePath += 'default_service.png';
+    }
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(32),
-        image: const DecorationImage(
-          image: AssetImage('assets/images/plumbing_services.png'),
+        image: DecorationImage(
+          image: AssetImage(imagePath),
           fit: BoxFit.cover,
         ),
       ),
@@ -427,13 +470,25 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              height: 1.2,
-              color: Colors.grey.shade800,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.2),
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+                color: Colors.white,
+                letterSpacing: 0.3,
+              ),
             ),
           ),
         ],
