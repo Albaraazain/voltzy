@@ -64,13 +64,41 @@ class _ProfessionalServiceDetailsScreenState
   @override
   void initState() {
     super.initState();
-    _loadServiceDetails();
+    LoggerService.debug('Initializing ProfessionalServiceDetailsScreen');
+    _serviceFuture = _loadServiceDetails();
   }
 
-  void _loadServiceDetails() {
-    final serviceRepo =
-        ServiceRepository(context.read<DatabaseProvider>().client);
-    _serviceFuture = serviceRepo.getService(widget.serviceData['id']);
+  Future<Service> _loadServiceDetails() async {
+    try {
+      LoggerService.debug(
+          'Loading service details with data: ${widget.serviceData}');
+
+      // Get the service ID from the navigation arguments
+      final serviceId = widget.serviceData['service_id'];
+      if (serviceId == null) {
+        LoggerService.error('Service ID is missing from navigation arguments',
+            'Available keys: ${widget.serviceData.keys.join(', ')}');
+        throw Exception('Service ID is missing from navigation arguments');
+      }
+
+      LoggerService.debug('Loading service with ID: $serviceId');
+
+      final dbProvider = context.read<DatabaseProvider>();
+      final serviceRepo = ServiceRepository(dbProvider.client);
+
+      try {
+        final service = await serviceRepo.getService(serviceId);
+        LoggerService.debug('Service loaded successfully: ${service.toJson()}');
+        return service;
+      } catch (e, stackTrace) {
+        LoggerService.error(
+            'Failed to load service from repository', e, stackTrace);
+        rethrow;
+      }
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to load service details', e, stackTrace);
+      rethrow;
+    }
   }
 
   Future<void> _deleteService() async {
@@ -149,12 +177,36 @@ class _ProfessionalServiceDetailsScreenState
             }
 
             if (snapshot.hasError) {
+              LoggerService.error(
+                  'Error in service details build', snapshot.error);
               return Center(
-                child: Text('Error loading service: ${snapshot.error}'),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error loading service details:\n${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _serviceFuture = _loadServiceDetails();
+                        });
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
               );
             }
 
             final service = snapshot.data!;
+            LoggerService.debug('Rendering service details for: ${service.id}');
 
             return SingleChildScrollView(
               child: Padding(
