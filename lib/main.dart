@@ -9,6 +9,7 @@ import 'core/config/supabase_config.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/common/widgets/loading_indicator.dart';
 import 'features/homeowner/screens/homeowner_main_screen.dart';
+import 'features/professional/screens/professional_main_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/database_provider.dart';
 import 'providers/bottom_navigation_provider.dart';
@@ -164,7 +165,7 @@ class MyApp extends StatelessWidget {
           home: authProvider.isAuthenticated
               ? authProvider.userType == UserType.homeowner
                   ? const HomeownerMainScreen()
-                  : const LoginScreen() // Temporarily redirect to login until service provider screen is ready
+                  : const ProfessionalMainScreen()
               : const LoginScreen(),
           routes: AppRoutes.getRoutes(),
           onGenerateRoute: AppRoutes.generateRoute,
