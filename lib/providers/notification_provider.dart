@@ -5,7 +5,7 @@ import 'database_provider.dart';
 
 class Notification {
   final String id;
-  final String profileId;
+  final String userId;
   final String title;
   final String message;
   final String type;
@@ -13,10 +13,11 @@ class Notification {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool read;
+  final Map<String, dynamic>? data;
 
   const Notification({
     required this.id,
-    required this.profileId,
+    required this.userId,
     required this.title,
     required this.message,
     required this.type,
@@ -24,39 +25,40 @@ class Notification {
     required this.createdAt,
     required this.updatedAt,
     required this.read,
+    this.data,
   });
 
   factory Notification.fromJson(Map<String, dynamic> json) {
     return Notification(
       id: json['id'] as String,
-      profileId: json['profile_id'] as String,
       title: json['title'] as String,
       message: json['message'] as String,
       type: json['type'] as String,
-      relatedId: json['related_id'] as String?,
+      read: json['read'] as bool,
+      data: json['data'] as Map<String, dynamic>?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
-      read: json['read'] as bool,
+      userId: json['profile_id'] as String,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'profile_id': profileId,
       'title': title,
       'message': message,
       'type': type,
-      'related_id': relatedId,
+      'read': read,
+      'data': data,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
-      'read': read,
+      'profile_id': userId,
     };
   }
 
   Notification copyWith({
     String? id,
-    String? profileId,
+    String? userId,
     String? title,
     String? message,
     String? type,
@@ -64,10 +66,11 @@ class Notification {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? read,
+    Map<String, dynamic>? data,
   }) {
     return Notification(
       id: id ?? this.id,
-      profileId: profileId ?? this.profileId,
+      userId: userId ?? this.userId,
       title: title ?? this.title,
       message: message ?? this.message,
       type: type ?? this.type,
@@ -75,6 +78,7 @@ class Notification {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       read: read ?? this.read,
+      data: data ?? this.data,
     );
   }
 }
@@ -279,6 +283,19 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       LoggerService.error('Failed to get unread count', e);
       return ApiResponse.error('Failed to get unread count: $e');
+    }
+  }
+
+  Future<int> getUnreadNotificationsCount() async {
+    try {
+      final response = await _databaseProvider.client.rpc(
+        'count_unread_notifications',
+        params: {'profile_id': _databaseProvider.currentProfile?.id},
+      );
+      return response as int;
+    } catch (e) {
+      LoggerService.error('Failed to get unread notifications count', e);
+      return 0;
     }
   }
 }
