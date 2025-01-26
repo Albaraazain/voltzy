@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/direct_request_model.dart';
+import '../services/logger_service.dart';
 
 class DirectRequestProvider extends ChangeNotifier {
   final List<DirectRequest> _requests = [];
@@ -46,11 +47,11 @@ class DirectRequestProvider extends ChangeNotifier {
             *,
             homeowner:homeowner_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             ),
             professional:professional_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             )
           ''').order('created_at', ascending: false);
 
@@ -80,11 +81,11 @@ class DirectRequestProvider extends ChangeNotifier {
             *,
             homeowner:homeowner_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             ),
             professional:professional_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             )
           ''')
           .eq('homeowner_id', homeownerId)
@@ -130,11 +131,11 @@ class DirectRequestProvider extends ChangeNotifier {
             *,
             homeowner:homeowner_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             ),
             professional:professional_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             )
           ''').single();
 
@@ -274,37 +275,34 @@ class DirectRequestProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadDirectRequests({
-    required String professionalId,
-  }) async {
+  Future<List<DirectRequest>> loadDirectRequests() async {
     try {
       _isLoading = true;
-      _error = null;
       notifyListeners();
 
       final response =
           await Supabase.instance.client.from('direct_requests').select('''
-            *,
-            homeowner:homeowner_id(
-              *,
-              profile:profile_id(*)
-            ),
-            professional:professional_id(
-              *,
-              profile:profile_id(*)
-            )
-          ''').eq('professional_id', professionalId);
+        *,
+        homeowner:homeowners (
+          *,
+          profile:profiles (*)
+        ),
+        professional:professionals (
+          *,
+          profile:profiles (*)
+        )
+      ''');
 
       _requests.clear();
-      _requests.addAll(
-        response.map<DirectRequest>((json) => DirectRequest.fromJson(json)),
-      );
+      _requests.addAll(response.map((json) => DirectRequest.fromJson(json)));
 
       _isLoading = false;
       notifyListeners();
+
+      return _requests;
     } catch (e) {
-      _error = e.toString();
       _isLoading = false;
+      LoggerService.error('Failed to load direct requests', e);
       notifyListeners();
       rethrow;
     }
@@ -333,11 +331,11 @@ class DirectRequestProvider extends ChangeNotifier {
             *,
             homeowner:homeowner_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             ),
             professional:professional_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             )
           ''').single();
 
@@ -395,11 +393,11 @@ class DirectRequestProvider extends ChangeNotifier {
             *,
             homeowner:homeowner_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             ),
             professional:professional_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             )
           ''')
           .single();
@@ -442,11 +440,11 @@ class DirectRequestProvider extends ChangeNotifier {
             *,
             homeowner:homeowner_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             ),
             professional:professional_id(
               *,
-              profile:profile_id(*)
+              profile:profiles (*)
             )
           ''').single();
 
@@ -471,11 +469,11 @@ class DirectRequestProvider extends ChangeNotifier {
           *,
           homeowner:homeowner_id(
             *,
-            profile:profile_id(*)
+            profile:profiles (*)
           ),
           professional:professional_id(
             *,
-            profile:profile_id(*)
+            profile:profiles (*)
           )
         ''').eq('id', requestId).single();
 
