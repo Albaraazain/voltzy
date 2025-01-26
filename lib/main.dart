@@ -76,7 +76,7 @@ class MyAppWrapper extends StatelessWidget {
         ),
         ChangeNotifierProxyProvider<AuthProvider, DatabaseProvider>(
           create: (context) => DatabaseProvider(
-            Provider.of<AuthProvider>(context, listen: false),
+            context.read<AuthProvider>(),
           ),
           update: (context, auth, previous) =>
               previous ?? DatabaseProvider(auth),
