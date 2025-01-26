@@ -12,6 +12,8 @@ import '../models/service_model.dart';
 import '../models/working_hours_model.dart';
 import '../models/payment_info_model.dart';
 import '../models/notification_preferences_model.dart';
+import '../repositories/professional_repository.dart';
+import '../repositories/homeowner_repository.dart';
 import 'auth_provider.dart';
 import '../models/schedule_slot_model.dart' as schedule;
 import '../models/category_model.dart' as category_model;
@@ -22,17 +24,23 @@ import '../features/homeowner/models/service.dart';
 // Import the USE_DEVELOPMENT_ENV constant
 
 class DatabaseProvider with ChangeNotifier {
-  late final SupabaseClient _client;
   final AuthProvider _authProvider;
+  final ProfessionalRepository _professionalRepo;
+  final HomeownerRepository _homeownerRepo;
+  final SupabaseClient _client;
+
+  bool _isLoading = false;
+  profile_models.Profile? _currentProfile;
+  Professional? _currentProfessional;
   List<Professional> _professionals = [];
   Homeowner? _currentHomeowner;
-  profile_models.Profile? _currentProfile;
-  bool _isLoading = false;
   bool _isInitialized = false;
   String? _error;
 
-  DatabaseProvider(this._authProvider) {
-    _client = _authProvider.client;
+  DatabaseProvider(this._authProvider)
+      : _client = _authProvider.client,
+        _professionalRepo = ProfessionalRepository(_authProvider.client),
+        _homeownerRepo = HomeownerRepository(_authProvider.client) {
     _initialize();
     _authProvider.addListener(_onAuthStateChanged);
   }
@@ -89,6 +97,7 @@ class DatabaseProvider with ChangeNotifier {
   profile_models.Profile? get currentProfile => _currentProfile;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  Professional? get currentProfessional => _currentProfessional;
 
   Future<void> loadCurrentProfile() async {
     if (_isLoading) return;
@@ -150,7 +159,6 @@ class DatabaseProvider with ChangeNotifier {
       if (_currentProfile?.userType == profile_models.UserType.professional) {
         await _loadProfessionalData();
         // For professionals, we only need their own profile
-        await loadProfessionals();
       } else if (_currentProfile?.userType ==
           profile_models.UserType.homeowner) {
         await _loadHomeownerData();
@@ -170,45 +178,13 @@ class DatabaseProvider with ChangeNotifier {
 
   Future<void> _loadProfessionalData() async {
     try {
-      LoggerService.info(
-          'Loading professional data for profile: ${_currentProfile!.id}');
+      _currentProfessional = await _professionalRepo.getCurrentProfessional(
+        _currentProfile!.id,
+      );
 
-      final queryString = '''
-        *,
-        profile:profiles (
-          id,
-          email,
-          user_type,
-          name,
-          created_at,
-          last_login_at
-        )
-      ''';
-
-      final professionalResponse = await _client
-          .from('professionals')
-          .select(queryString)
-          .eq('id', _currentProfile!.id)
-          .maybeSingle();
-
-      if (professionalResponse == null) {
-        LoggerService.error(
-            'No professional record found for profile: ${_currentProfile!.id}');
-        _professionals = [];
-        return;
-      }
-
-      // Store the professional data in the _professionals list
-      final userProfile =
-          profile_models.Profile.fromJson(professionalResponse['profile']);
-      _professionals = [
-        Professional.fromJson({
-          ...professionalResponse,
-          'profile': userProfile.toJson(),
-        })
-      ];
-
-      LoggerService.info('Successfully loaded professional profile');
+      // For professionals, their data is the only one in the list
+      _professionals =
+          _currentProfessional != null ? [_currentProfessional!] : [];
     } catch (e, stackTrace) {
       LoggerService.error('Failed to load professional data', e, stackTrace);
       rethrow;
@@ -217,19 +193,10 @@ class DatabaseProvider with ChangeNotifier {
 
   Future<void> _loadHomeownerData() async {
     try {
-      LoggerService.info(
-          'Loading homeowner data for profile: ${_currentProfile!.id}');
-      final homeownerResponse = await _client
-          .from('homeowners')
-          .select()
-          .eq('id', _currentProfile!.id)
-          .single();
-      LoggerService.debug('Loaded homeowner data: $homeownerResponse');
-      _currentHomeowner = Homeowner.fromJson(
-        homeownerResponse,
-        profile: _currentProfile!,
+      _currentHomeowner = await _homeownerRepo.getCurrentHomeowner(
+        _currentProfile!.id,
+        _currentProfile!,
       );
-      LoggerService.info('Successfully loaded homeowner profile');
     } catch (e, stackTrace) {
       LoggerService.error('Failed to load homeowner data', e, stackTrace);
       rethrow;
@@ -238,79 +205,10 @@ class DatabaseProvider with ChangeNotifier {
 
   Future<void> loadProfessionals() async {
     try {
-      LoggerService.debug('🔄 Starting to load professionals...');
-
-      final response = await _client.from('professionals').select('''
-        *,
-        profile:profiles (*),
-        professional_services!professional_services_professional_id_fkey (
-          service:services (*)
-        )
-      ''');
-
-      LoggerService.debug(
-          '📥 Received ${response.length} professionals from database');
-
-      final List<Professional> professionals = [];
-      for (final row in response) {
-        try {
-          if (row['profile'] == null) {
-            LoggerService.error(
-                '❌ Professional has no profile data: ${row['id']}');
-            continue;
-          }
-
-          final profileData = row['profile'] as Map<String, dynamic>;
-          LoggerService.debug(
-              '📋 Processing professional ${row['id']} with profile data: $profileData');
-
-          final profile = profile_models.Profile.fromJson(profileData);
-
-          if (profile.userType == profile_models.UserType.professional) {
-            try {
-              // Extract services from the junction table data
-              final services = (row['professional_services'] as List<dynamic>?)
-                      ?.map((s) => Service.fromJson(
-                          s['service'] as Map<String, dynamic>))
-                      .toList() ??
-                  [];
-
-              // Combine profile data with professional data
-              final professionalData = {
-                ...row,
-                'profile': profile.toJson(),
-                'services': services,
-              };
-
-              LoggerService.debug(
-                  '🔨 Constructed professional data: $professionalData');
-
-              professionals.add(Professional.fromJson(professionalData));
-              LoggerService.debug(
-                  '✅ Successfully added professional ${row['id']}');
-            } catch (e, stackTrace) {
-              LoggerService.error(
-                '❌ Failed to parse professional data for ID: ${row['id']}',
-                e,
-                stackTrace,
-              );
-            }
-          }
-        } catch (e, stackTrace) {
-          LoggerService.error(
-            '❌ Failed to parse profile data for professional',
-            e,
-            stackTrace,
-          );
-        }
-      }
-
-      _professionals = professionals;
-      LoggerService.info(
-          '✅ Successfully loaded ${professionals.length} professionals');
+      _professionals = await _professionalRepo.getAllProfessionals();
       notifyListeners();
     } catch (e, stackTrace) {
-      LoggerService.error('❌ Failed to load professionals list', e, stackTrace);
+      LoggerService.error('Failed to load professionals list', e, stackTrace);
       rethrow;
     }
   }
