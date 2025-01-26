@@ -4,6 +4,8 @@ import '../../../core/services/logger_service.dart';
 import '../../../models/professional_model.dart';
 import '../../../providers/database_provider.dart';
 import 'package:provider/provider.dart';
+import '../../../core/routes/app_router.dart';
+import 'professional_main_screen.dart';
 
 class MetricCard extends StatelessWidget {
   final String title;
@@ -32,15 +34,19 @@ class MetricCard extends StatelessWidget {
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Container(
@@ -56,23 +62,30 @@ class MetricCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               if (trend != null)
-                Row(
-                  children: [
-                    const Icon(Icons.trending_up, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$trend from last month',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.trending_up, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$trend from last month',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
@@ -281,12 +294,22 @@ class ProfessionalHomeScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      height: 4,
-                      width: 24,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800],
-                        borderRadius: BorderRadius.circular(2),
+                    InkWell(
+                      onTap: () {
+                        final mainScreenState = context.findAncestorStateOfType<
+                            ProfessionalMainScreenState>();
+                        if (mainScreenState != null) {
+                          mainScreenState.showMenu(context);
+                        }
+                      },
+                      child: Container(
+                        height: 40,
+                        width: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.menu, color: Colors.black),
                       ),
                     ),
                     Container(
@@ -460,47 +483,6 @@ class ProfessionalHomeScreen extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: Colors.grey[200]!,
-              width: 1,
-            ),
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.home, color: Colors.pink[500], size: 24),
-                const SizedBox(height: 4),
-                Container(
-                  width: 4,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.pink[500],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-            Icon(Icons.calendar_today, color: Colors.grey[400], size: 24),
-            Icon(Icons.message, color: Colors.grey[400], size: 24),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ],
         ),
       ),
     );
