@@ -62,10 +62,11 @@ class Professional {
   });
 
   factory Professional.fromJson(Map<String, dynamic> json) {
+    final profile = Profile.fromJson(json['profile'] as Map<String, dynamic>);
     return Professional(
       id: json['id'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
+      name: profile.name,
+      email: profile.email,
       phoneNumber: json['phone_number'] as String?,
       profileImage: json['profile_image'] as String?,
       bio: json['bio'] as String?,
@@ -81,7 +82,9 @@ class Professional {
           ? PaymentInfo.fromJson(json['payment_info'])
           : null,
       createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : DateTime.now(),
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: json['review_count'] as int? ?? 0,
       specialties: (json['specialties'] as List<dynamic>?)
@@ -89,7 +92,7 @@ class Professional {
               .toList() ??
           [],
       isAvailable: json['is_available'] as bool? ?? true,
-      profile: Profile.fromJson(json['profile'] as Map<String, dynamic>),
+      profile: profile,
       phone: json['phone'] as String?,
       licenseNumber: json['license_number'] as String?,
       yearsOfExperience: json['years_of_experience'] as int? ?? 0,
