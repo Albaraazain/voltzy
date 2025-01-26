@@ -46,7 +46,7 @@ class ProfessionalLocationService {
         'location_lat': location.latitude,
         'location_lng': location.longitude,
         'last_location_update': DateTime.now().toIso8601String(),
-      }).eq('profile_id', userId);
+      }).eq('id', userId);
       LoggerService.debug('Location updated for professional: $userId');
     } catch (e) {
       LoggerService.error('Error updating professional location: $e');
@@ -66,7 +66,7 @@ class ProfessionalLocationService {
           'latitude': position.latitude,
           'longitude': position.longitude,
           'last_location_update': DateTime.now().toIso8601String(),
-        }).eq('profile_id', userId);
+        }).eq('id', userId);
 
         LoggerService.debug(
           'professional location updated - Lat: ${position.latitude}, Lon: ${position.longitude}',
@@ -81,11 +81,49 @@ class ProfessionalLocationService {
     try {
       await _supabase.from('professionals').update({
         'service_radius_km': radiusKm,
-      }).eq('profile_id', userId);
+      }).eq('id', userId);
 
       LoggerService.debug('Service radius updated for professional: $userId');
     } catch (e) {
       LoggerService.error('Error updating service radius: $e');
+    }
+  }
+
+  Future<void> updateLocation(String userId, double lat, double lng) async {
+    try {
+      await _supabase.from('professionals').update({
+        'location_lat': lat,
+        'location_lng': lng,
+      }).eq('id', userId);
+    } catch (e) {
+      LoggerService.error('Failed to update professional location', e);
+      rethrow;
+    }
+  }
+
+  Future<void> clearLocation(String userId) async {
+    try {
+      await _supabase.from('professionals').update({
+        'location_lat': null,
+        'location_lng': null,
+      }).eq('id', userId);
+    } catch (e) {
+      LoggerService.error('Failed to clear professional location', e);
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getLocation(String userId) async {
+    try {
+      final response = await _supabase
+          .from('professionals')
+          .select('location_lat, location_lng')
+          .eq('id', userId)
+          .single();
+      return response;
+    } catch (e) {
+      LoggerService.error('Failed to get professional location', e);
+      rethrow;
     }
   }
 }
