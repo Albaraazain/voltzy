@@ -13,11 +13,11 @@ class BroadcastRequestMapScreen extends StatefulWidget {
   final double initialLng;
 
   const BroadcastRequestMapScreen({
-    Key? key,
+    super.key,
     required this.service,
     required this.initialLat,
     required this.initialLng,
-  }) : super(key: key);
+  });
 
   @override
   State<BroadcastRequestMapScreen> createState() =>
