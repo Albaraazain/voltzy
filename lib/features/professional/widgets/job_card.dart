@@ -1,82 +1,157 @@
 import 'package:flutter/material.dart';
-import '../../../models/job_model.dart';
+import '../../../core/config/routes.dart';
 
 class JobCard extends StatelessWidget {
-  final Job job;
+  final String serviceType;
+  final String clientName;
+  final String clientInitials;
+  final String status;
+  final String scheduledTime;
+  final String address;
+  final String rate;
+  final String duration;
+  final String? notes;
+  final List<String>? tags;
+  final VoidCallback? onTap;
 
   const JobCard({
-    super.key,
-    required this.job,
-  });
+    Key? key,
+    required this.serviceType,
+    required this.clientName,
+    required this.clientInitials,
+    required this.status,
+    required this.scheduledTime,
+    required this.address,
+    required this.rate,
+    required this.duration,
+    this.notes,
+    this.tags,
+    this.onTap,
+  }) : super(key: key);
+
+  void _navigateToJobDetails(BuildContext context) {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.professionalJobDetails,
+      arguments: {
+        'service_type': serviceType,
+        'status': status,
+        'client_name': clientName,
+        'client_initials': clientInitials,
+        'client_rating': '4.9', // TODO: Make dynamic
+        'client_jobs': '24', // TODO: Make dynamic
+        'address': address,
+        'scheduled_time': scheduledTime,
+        'rate': rate,
+        'duration': duration,
+        'payment_method': 'Credit Card', // TODO: Make dynamic
+        'notes': notes,
+        'tags': tags ?? [],
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ListTile(
-        title: Text(job.title),
-        subtitle: Column(
+    return GestureDetector(
+      onTap: () => _navigateToJobDetails(context),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.grey.shade100),
+        ),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(job.description),
-            const SizedBox(height: 4),
-            Text(
-              'Status: ${_getStatusText(job.status)}',
-              style: TextStyle(
-                color: _getStatusColor(job.status),
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      serviceType,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      clientName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _getStatusColor(status),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.schedule, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 8),
+                Text(
+                  scheduledTime,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    address,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        trailing: Text(
-          '\$${job.price.toStringAsFixed(2)}',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-        ),
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            '/professional/job-details',
-            arguments: job,
-          );
-        },
       ),
     );
   }
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case Job.STATUS_AWAITING_ACCEPTANCE:
-        return 'Awaiting Acceptance';
-      case Job.STATUS_SCHEDULED:
-        return 'Scheduled';
-      case Job.STATUS_STARTED:
-        return 'Started';
-      case Job.STATUS_COMPLETED:
-        return 'Completed';
-      case Job.STATUS_CANCELLED:
-        return 'Cancelled';
-      default:
-        return 'Unknown';
-    }
-  }
-
   Color _getStatusColor(String status) {
     switch (status) {
-      case Job.STATUS_AWAITING_ACCEPTANCE:
-        return Colors.orange;
-      case Job.STATUS_SCHEDULED:
-        return Colors.blue;
-      case Job.STATUS_STARTED:
-        return Colors.green;
-      case Job.STATUS_COMPLETED:
-        return Colors.purple;
-      case Job.STATUS_CANCELLED:
-        return Colors.red;
+      case 'In Progress':
+        return Colors.pink.shade700;
+      case 'Scheduled':
+        return Colors.amber.shade700;
       default:
-        return Colors.grey;
+        return Colors.grey.shade600;
     }
   }
 }
