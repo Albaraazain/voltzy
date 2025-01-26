@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../models/job_model.dart';
 import '../../../core/theme/colors.dart';
-import '../../../core/services/logger_service.dart';
 import 'package:lottie/lottie.dart';
 
 class JobSearchScreen extends StatefulWidget {
