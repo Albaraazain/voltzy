@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/database_provider.dart';
+import '../../../repositories/professional_repository.dart';
+import '../../../repositories/service_repository.dart';
+import '../../../models/service_model.dart';
+import '../../../core/services/logger_service.dart';
 
 class InfoCard extends StatelessWidget {
   final String title;
@@ -17,23 +23,17 @@ class InfoCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Icon(Icons.edit_outlined, size: 20, color: Colors.grey[400]),
-            ],
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 16),
           child,
@@ -43,101 +43,234 @@ class InfoCard extends StatelessWidget {
   }
 }
 
-class ProfessionalServiceDetailsScreen extends StatelessWidget {
-  final Map<String, dynamic> service;
+class ProfessionalServiceDetailsScreen extends StatefulWidget {
+  final Map<String, dynamic> serviceData;
 
   const ProfessionalServiceDetailsScreen({
     Key? key,
-    required this.service,
+    required this.serviceData,
   }) : super(key: key);
+
+  @override
+  State<ProfessionalServiceDetailsScreen> createState() =>
+      _ProfessionalServiceDetailsScreenState();
+}
+
+class _ProfessionalServiceDetailsScreenState
+    extends State<ProfessionalServiceDetailsScreen> {
+  late Future<Service> _serviceFuture;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServiceDetails();
+  }
+
+  void _loadServiceDetails() {
+    final serviceRepo =
+        ServiceRepository(context.read<DatabaseProvider>().client);
+    _serviceFuture = serviceRepo.getService(widget.serviceData['id']);
+  }
+
+  Future<void> _deleteService() async {
+    try {
+      setState(() => _isLoading = true);
+
+      final dbProvider = context.read<DatabaseProvider>();
+      final professionalRepo = ProfessionalRepository(dbProvider.client);
+
+      // Remove service from professional's services
+      await professionalRepo.removeServiceFromProfessional(
+        dbProvider.currentProfessional!.id,
+        widget.serviceData['id'],
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Service removed successfully')),
+        );
+      }
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to delete service', e, stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to remove service')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _updateService(Service service) async {
+    try {
+      setState(() => _isLoading = true);
+
+      final dbProvider = context.read<DatabaseProvider>();
+      final professionalRepo = ProfessionalRepository(dbProvider.client);
+
+      // Update service details
+      await professionalRepo.updateProfessionalService(
+        dbProvider.currentProfessional!.id,
+        service.id,
+        customPrice: service.basePrice,
+        customDuration: service.estimatedDuration,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Service updated successfully')),
+        );
+      }
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to update service', e, stackTrace);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update service')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.chevron_left, size: 24),
-                          const SizedBox(width: 12),
-                          Container(
-                            height: 4,
-                            width: 24,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[800],
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.settings_outlined,
-                        size: 24, color: Colors.grey[600]),
-                  ],
-                ),
-                const SizedBox(height: 24),
+        child: FutureBuilder<Service>(
+          future: _serviceFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-                // Title and Status
-                Row(
+            if (snapshot.hasError) {
+              return Center(
+                child: Text('Error loading service: ${snapshot.error}'),
+              );
+            }
+
+            final service = snapshot.data!;
+
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          service['name'] ?? 'Electrical Installation',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.chevron_left, size: 24),
+                              const SizedBox(width: 12),
+                              Container(
+                                height: 4,
+                                width: 24,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Row(
+                        Icon(Icons.settings_outlined,
+                            size: 24, color: Colors.grey[600]),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Title and Status
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Text(
+                              service.name,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             Row(
                               children: [
-                                Icon(
-                                  Icons.star,
-                                  size: 16,
-                                  color: Colors.amber[500],
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${service['rating'] ?? '4.9'} (${service['jobs_completed'] ?? '56'} jobs)',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: widget.serviceData['is_active']
+                                        ? Colors.green[100]
+                                        : Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    widget.serviceData['is_active']
+                                        ? 'Active'
+                                        : 'Inactive',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: widget.serviceData['is_active']
+                                          ? Colors.green[700]
+                                          : Colors.grey[600],
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 4,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[300],
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Basic Information
+                    InfoCard(
+                      title: 'Basic Information',
+                      child: Column(
+                        children: [
+                          _buildInfoRow(
+                            'Base Rate',
+                            '\$${service.basePrice?.toString() ?? "0"}/hour',
+                          ),
+                          _buildInfoRow(
+                            'Duration',
+                            service.estimatedDuration != null
+                                ? '${service.estimatedDuration} minutes'
+                                : 'Varies',
+                          ),
+                          _buildInfoRow(
+                            'Category',
+                            'Professional Services',
+                            showBorder: false,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Service Description
+                    if (service.description != null)
+                      InfoCard(
+                        title: 'Service Description',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              service['is_available'] == true
-                                  ? 'Active'
-                                  : 'Inactive',
+                              service.description!,
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey[600],
@@ -145,196 +278,85 @@ class ProfessionalServiceDetailsScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                    if (service['is_popular'] == true)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.pink[50],
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          'Most Popular',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.pink[700],
-                          ),
-                        ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 32),
 
-                // Basic Information
-                InfoCard(
-                  title: 'Basic Information',
-                  child: Column(
-                    children: [
-                      _buildInfoRow('Base Rate', '\$85/hour'),
-                      _buildInfoRow('Duration', '2-3 hours'),
-                      _buildInfoRow('Availability', 'Weekdays, 8 AM - 6 PM',
-                          showBorder: false),
-                    ],
-                  ),
-                ),
-
-                // Service Description
-                InfoCard(
-                  title: 'Service Description',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Professional electrical installation service including new outlet installation, circuit setup, and wiring configuration. Certified and insured service with warranty coverage.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                    // Service Notice
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.amber[50],
+                        borderRadius: BorderRadius.circular(32),
                       ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                      child: Row(
                         children: [
-                          _buildTag('Outlet Installation'),
-                          _buildTag('Circuit Setup'),
-                          _buildTag('Wiring'),
+                          Icon(
+                            Icons.info_outline,
+                            size: 20,
+                            color: Colors.amber[600],
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Service Notice',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.amber[800],
+                                  ),
+                                ),
+                                Text(
+                                  'Custom pricing and duration available on request',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.amber[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
 
-                // Service Requirements
-                InfoCard(
-                  title: 'Service Requirements',
-                  child: Column(
-                    children: [
-                      _buildRequirement(
-                        1,
-                        'Client Information Required',
-                        'Property type, existing electrical setup',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildRequirement(
-                        2,
-                        'Tools & Equipment',
-                        'All necessary tools provided by professional',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildRequirement(
-                        3,
-                        'Safety Requirements',
-                        'Clear workspace access, power shutdown capability',
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Service Area
-                InfoCard(
-                  title: 'Service Area',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    // Action Buttons
+                    if (!_isLoading) ...[
                       Row(
                         children: [
-                          Icon(Icons.location_on_outlined,
-                              size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Greater Boston Area',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                          Expanded(
+                            child: _buildActionButton(
+                              'Delete Service',
+                              Icons.delete_outline,
+                              Colors.grey[100]!,
+                              Colors.grey[600]!,
+                              onPressed: _deleteService,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildActionButton(
+                              'Edit Service',
+                              Icons.edit_outlined,
+                              Colors.pink[500]!,
+                              Colors.white,
+                              onPressed: () {
+                                // TODO: Navigate to edit service screen
+                              },
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '25 mile radius from downtown Boston',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Service Notice
-                Container(
-                  margin: const EdgeInsets.only(bottom: 24),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.amber[50],
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 20,
-                        color: Colors.amber[600],
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Service Notice',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.amber[800],
-                              ),
-                            ),
-                            Text(
-                              'Emergency services available with additional charges',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.amber[700],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Action Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildActionButton(
-                        'Delete Service',
-                        Icons.delete_outline,
-                        Colors.grey[100]!,
-                        Colors.grey[600]!,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildActionButton(
-                        'Edit Service',
-                        Icons.edit_outlined,
-                        Colors.pink[500]!,
-                        Colors.white,
-                      ),
-                    ),
+                    ] else
+                      const Center(child: CircularProgressIndicator()),
+                    const SizedBox(height: 80), // Space for bottom navigation
                   ],
                 ),
-                const SizedBox(height: 80), // Space for bottom navigation
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -342,12 +364,13 @@ class ProfessionalServiceDetailsScreen extends StatelessWidget {
 
   Widget _buildInfoRow(String label, String value, {bool showBorder = true}) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
         border: showBorder
             ? Border(
                 bottom: BorderSide(
-                  color: Colors.grey[100]!,
+                  color: Colors.grey[200]!,
+                  width: 1,
                 ),
               )
             : null,
@@ -374,100 +397,29 @@ class ProfessionalServiceDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTag(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 4,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.grey[600],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRequirement(int number, String title, String description) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            color: Colors.pink[50],
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              number.toString(),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.pink[700],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildActionButton(
     String text,
     IconData icon,
     Color backgroundColor,
-    Color textColor,
-  ) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(24),
+    Color textColor, {
+    VoidCallback? onPressed,
+  }) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: backgroundColor,
+        foregroundColor: textColor,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: textColor, size: 20),
+          Icon(icon, size: 20),
           const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          Text(text),
         ],
       ),
     );
