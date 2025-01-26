@@ -1,13 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flashy_tab_bar2/flashy_tab_bar2.dart';
-import '../../../core/constants/colors.dart';
-import '../../../core/constants/text_styles.dart';
 import '../../../providers/database_provider.dart';
-import '../../../providers/auth_provider.dart';
-import '../../../providers/bottom_navigation_provider.dart';
-import '../../common/widgets/custom_list_tile.dart';
-import '../../common/widgets/bottom_navigation.dart';
 
 class ProfileSection extends StatelessWidget {
   final List<Widget> children;
