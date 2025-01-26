@@ -63,6 +63,16 @@ class Professional {
 
   factory Professional.fromJson(Map<String, dynamic> json) {
     final profile = Profile.fromJson(json['profile'] as Map<String, dynamic>);
+
+    // Parse services from professional_services junction table
+    final services = <Service>[];
+    if (json['professional_services'] != null) {
+      final professionalServices =
+          json['professional_services'] as List<dynamic>;
+      services.addAll(professionalServices.map(
+          (ps) => Service.fromJson(ps['service'] as Map<String, dynamic>)));
+    }
+
     return Professional(
       id: json['id'] as String,
       name: profile.name,
@@ -74,10 +84,7 @@ class Professional {
       isVerified: json['is_verified'] as bool? ?? false,
       location:
           json['location'] != null ? Location.fromJson(json['location']) : null,
-      services: (json['services'] as List<dynamic>?)
-              ?.map((e) => Service.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
+      services: services,
       paymentInfo: json['payment_info'] != null
           ? PaymentInfo.fromJson(json['payment_info'])
           : null,
