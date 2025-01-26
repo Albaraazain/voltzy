@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/colors.dart';
 import '../../../providers/database_provider.dart';
-import '../models/service_category_card.dart';
 import 'broadcast_job_screen.dart';
 
 class CategoryServicesScreen extends StatefulWidget {
