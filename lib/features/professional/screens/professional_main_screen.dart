@@ -4,6 +4,7 @@ import 'package:flashy_tab_bar2/flashy_tab_bar2.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/bottom_navigation_provider.dart';
 import '../../../core/routes/app_router.dart';
+import '../../../core/config/routes.dart';
 import 'professional_home_screen.dart';
 import 'professional_calendar_screen.dart';
 import 'professional_messages_screen.dart';
@@ -32,7 +33,7 @@ class ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
       barrierDismissible: true,
       barrierLabel: '',
       barrierColor: Colors.black38,
-      transitionDuration: const Duration(milliseconds: 400),
+      transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation1, animation2) => Container(),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return SlideTransition(
@@ -41,10 +42,13 @@ class ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
             end: Offset.zero,
           ).animate(CurvedAnimation(
             parent: animation,
-            curve: Curves.easeOutCubic,
+            curve: Curves.easeInOut,
           )),
           child: FadeTransition(
-            opacity: animation,
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeIn,
+            ),
             child: Material(
               elevation: 0,
               color: Colors.transparent,
@@ -97,38 +101,48 @@ class ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
                               Icons.home_outlined, 'Home', animation, 0,
                               onTap: () {
                             Navigator.pop(context);
-                            setState(() => _selectedIndex = 0);
+                            context
+                                .read<BottomNavigationProvider>()
+                                .setIndex(0);
                           }),
                           _buildAnimatedMenuItem(
                               Icons.calendar_today, 'Schedule', animation, 1,
                               onTap: () {
                             Navigator.pop(context);
-                            setState(() => _selectedIndex = 1);
+                            context
+                                .read<BottomNavigationProvider>()
+                                .setIndex(1);
                           }),
                           _buildAnimatedMenuItem(
                               Icons.message_outlined, 'Messages', animation, 2,
                               onTap: () {
                             Navigator.pop(context);
-                            setState(() => _selectedIndex = 2);
+                            context
+                                .read<BottomNavigationProvider>()
+                                .setIndex(2);
                           }),
                           _buildAnimatedMenuItem(
                               Icons.person_outline, 'Profile', animation, 3,
                               onTap: () {
                             Navigator.pop(context);
-                            setState(() => _selectedIndex = 3);
+                            context
+                                .read<BottomNavigationProvider>()
+                                .setIndex(3);
                           }),
                           const Divider(color: Colors.white24, height: 32),
                           _buildAnimatedMenuItem(
                               Icons.work_outline, 'My Services', animation, 4,
                               onTap: () {
                             Navigator.pop(context);
-                            // TODO: Navigate to services screen
+                            Navigator.pushNamed(
+                                context, AppRoutes.professionalServices);
                           }),
                           _buildAnimatedMenuItem(
                               Icons.payments_outlined, 'Earnings', animation, 5,
                               onTap: () {
                             Navigator.pop(context);
-                            // TODO: Navigate to earnings screen
+                            Navigator.pushNamed(
+                                context, AppRoutes.professionalEarnings);
                           }),
                           _buildAnimatedMenuItem(
                               Icons.settings_outlined, 'Settings', animation, 6,
@@ -172,23 +186,20 @@ class ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
       ).animate(CurvedAnimation(
         parent: animation,
         curve: Interval(
-          0.4 + (index * 0.1),
+          0.3 + (index * 0.05),
           1.0,
           curve: Curves.easeOutCubic,
         ),
       )),
       child: FadeTransition(
-        opacity: Tween<double>(
-          begin: 0.0,
-          end: 1.0,
-        ).animate(CurvedAnimation(
+        opacity: CurvedAnimation(
           parent: animation,
           curve: Interval(
-            0.4 + (index * 0.1),
+            0.3 + (index * 0.05),
             1.0,
             curve: Curves.easeOut,
           ),
-        )),
+        ),
         child: Material(
           color: Colors.transparent,
           child: ListTile(
