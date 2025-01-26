@@ -178,15 +178,27 @@ class DatabaseProvider with ChangeNotifier {
 
   Future<void> _loadProfessionalData() async {
     try {
-      _currentProfessional = await _professionalRepo.getCurrentProfessional(
-        _currentProfile!.id,
-      );
+      LoggerService.debug('🔄 Loading professional data...');
 
-      // For professionals, their data is the only one in the list
-      _professionals =
-          _currentProfessional != null ? [_currentProfessional!] : [];
+      if (_currentProfile?.id == null) {
+        throw Exception('No profile ID available');
+      }
+
+      final professionalRepo = ProfessionalRepository(_client);
+      _currentProfessional =
+          await professionalRepo.getCurrentProfessional(_currentProfile!.id);
+
+      if (_currentProfessional != null) {
+        LoggerService.debug('✅ Professional data loaded successfully');
+        LoggerService.debug(
+            'Services count: ${_currentProfessional!.services.length}');
+      } else {
+        LoggerService.warning('⚠️ No professional data found');
+      }
+
+      notifyListeners();
     } catch (e, stackTrace) {
-      LoggerService.error('Failed to load professional data', e, stackTrace);
+      LoggerService.error('❌ Failed to load professional data', e, stackTrace);
       rethrow;
     }
   }
