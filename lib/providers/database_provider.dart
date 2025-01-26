@@ -15,7 +15,6 @@ import '../models/notification_preferences_model.dart';
 import 'auth_provider.dart';
 import '../models/schedule_slot_model.dart' as schedule;
 import '../models/category_model.dart' as category_model;
-import '../core/config/supabase_config.dart';
 import '../core/utils/api_response.dart';
 import '../models/service_category_model.dart';
 import '../features/homeowner/models/service.dart';
@@ -176,7 +175,6 @@ class DatabaseProvider with ChangeNotifier {
 
       final queryString = '''
         *,
-        hourly_rate::float as hourly_rate,
         profile:profiles (
           id,
           email,
@@ -190,8 +188,15 @@ class DatabaseProvider with ChangeNotifier {
       final professionalResponse = await _client
           .from('professionals')
           .select(queryString)
-          .eq('profile_id', _currentProfile!.id)
-          .single();
+          .eq('id', _currentProfile!.id)
+          .maybeSingle();
+
+      if (professionalResponse == null) {
+        LoggerService.error(
+            'No professional record found for profile: ${_currentProfile!.id}');
+        _professionals = [];
+        return;
+      }
 
       // Store the professional data in the _professionals list
       final userProfile =
@@ -217,7 +222,7 @@ class DatabaseProvider with ChangeNotifier {
       final homeownerResponse = await _client
           .from('homeowners')
           .select()
-          .eq('profile_id', _currentProfile!.id)
+          .eq('id', _currentProfile!.id)
           .single();
       LoggerService.debug('Loaded homeowner data: $homeownerResponse');
       _currentHomeowner = Homeowner.fromJson(
@@ -237,8 +242,8 @@ class DatabaseProvider with ChangeNotifier {
 
       final response = await _client.from('professionals').select('''
         *,
-        profile:profiles!professionals_profile_id_fkey (*),
-        services:professional_services (
+        profile:profiles (*),
+        professional_services!professional_services_professional_id_fkey (
           service:services (*)
         )
       ''');
@@ -264,7 +269,7 @@ class DatabaseProvider with ChangeNotifier {
           if (profile.userType == profile_models.UserType.professional) {
             try {
               // Extract services from the junction table data
-              final services = (row['services'] as List<dynamic>?)
+              final services = (row['professional_services'] as List<dynamic>?)
                       ?.map((s) => Service.fromJson(
                           s['service'] as Map<String, dynamic>))
                       .toList() ??
@@ -273,12 +278,6 @@ class DatabaseProvider with ChangeNotifier {
               // Combine profile data with professional data
               final professionalData = {
                 ...row,
-                'name': profile.name,
-                'email': profile.email,
-                'created_at':
-                    row['created_at'] ?? profile.createdAt.toIso8601String(),
-                'updated_at':
-                    row['updated_at'] ?? DateTime.now().toIso8601String(),
                 'profile': profile.toJson(),
                 'services': services,
               };
@@ -435,7 +434,6 @@ class DatabaseProvider with ChangeNotifier {
       final professionals = [
         {
           'id': '1',
-          'profile_id': '1',
           'rating': 4.5,
           'jobs_completed': 25,
           'hourly_rate': 75.0,
@@ -447,7 +445,6 @@ class DatabaseProvider with ChangeNotifier {
         },
         {
           'id': '2',
-          'profile_id': '2',
           'rating': 4.8,
           'jobs_completed': 42,
           'hourly_rate': 85.0,
@@ -462,37 +459,6 @@ class DatabaseProvider with ChangeNotifier {
       // Insert sample professionals
       for (final professional in professionals) {
         await _client.from('professionals').upsert(professional);
-      }
-
-      // Sample jobs data
-      final jobs = [
-        {
-          'id': '1',
-          'homeowner_id': _authProvider.userId,
-          'professional_id': '1',
-          'title': 'Fix Kitchen Lights',
-          'description': 'Kitchen lights are flickering and need repair',
-          'status': 'pending',
-          'date': DateTime.now().toIso8601String(),
-          'price': 150.0,
-          'created_at': DateTime.now().toIso8601String(),
-        },
-        {
-          'id': '2',
-          'homeowner_id': _authProvider.userId,
-          'professional_id': '2',
-          'title': 'Install Outdoor Lighting',
-          'description': 'Need to install outdoor security lights',
-          'status': 'completed',
-          'date': DateTime.now().toIso8601String(),
-          'price': 300.0,
-          'created_at': DateTime.now().toIso8601String(),
-        },
-      ];
-
-      // Insert sample jobs
-      for (final job in jobs) {
-        await _client.from('jobs').upsert(job);
       }
 
       await loadProfessionals();
@@ -513,20 +479,12 @@ class DatabaseProvider with ChangeNotifier {
       var query = _client.from('jobs').select('''
         *,
         professional:professionals (
-          id,
-          profile:profiles (
-            id,
-            name,
-            email
-          )
+          *,
+          profile:profiles (*)
         ),
-        homeowner:homeowners!inner (
-          id,
-          profile:profiles!inner (
-            id,
-            name,
-            email
-          )
+        homeowner:homeowners (
+          *,
+          profile:profiles (*)
         )
       ''');
 
@@ -545,10 +503,8 @@ class DatabaseProvider with ChangeNotifier {
           'Executing jobs query for user type: ${_currentProfile?.userType}');
       LoggerService.debug('User ID: ${_currentProfile?.id}');
 
-      final response = await query.order('created_at', ascending: false);
-      LoggerService.debug('Jobs query response: $response');
-
-      return response.map((data) => Job.fromJson(data)).toList();
+      final response = await query;
+      return response.map((json) => Job.fromJson(json)).toList();
     } catch (e, stackTrace) {
       LoggerService.error('Failed to load jobs', e, stackTrace);
       rethrow;
@@ -670,31 +626,28 @@ class DatabaseProvider with ChangeNotifier {
 
   Future<void> updateProfessionalLocation(double lat, double lng) async {
     try {
-      if (!_authProvider.isAuthenticated) {
-        throw Exception('User must be authenticated to update location');
+      if (_currentProfile == null) {
+        throw Exception('No user logged in');
       }
-
-      final professional = _professionals.firstWhere(
-        (e) => e.profile.id == _currentProfile!.id,
-        orElse: () => throw Exception('Professional not found'),
-      );
 
       await _client.from('professionals').update({
         'location_lat': lat,
         'location_lng': lng,
-      }).eq('id', professional.id);
+      }).eq('id', _currentProfile!.id);
 
       // Update local state
-      final index = _professionals.indexWhere((p) => p.id == professional.id);
-      if (index != -1) {
-        _professionals[index] = professional.copyWith(
-          locationLat: lat,
-          locationLng: lng,
-        );
-        notifyListeners();
+      if (_professionals.isNotEmpty) {
+        final professional = _professionals.first;
+        _professionals = [
+          professional.copyWith(
+            locationLat: lat,
+            locationLng: lng,
+          )
+        ];
       }
+
+      notifyListeners();
     } catch (e) {
-      LoggerService.error('Error updating professional location: $e');
       rethrow;
     }
   }
