@@ -1,252 +1,263 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/colors.dart';
-import '../../../core/constants/text_styles.dart';
-import '../../../providers/database_provider.dart';
-import '../../../providers/professional_stats_provider.dart';
-import '../../common/widgets/loading_indicator.dart';
-import '../../common/widgets/custom_button.dart';
+import 'package:flashy_tab_bar2/flashy_tab_bar2.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/bottom_navigation_provider.dart';
+import '../../../core/routes/app_router.dart';
+import 'professional_home_screen.dart';
+import 'professional_calendar_screen.dart';
+import 'professional_messages_screen.dart';
+import 'professional_profile_screen.dart';
 
 class ProfessionalMainScreen extends StatefulWidget {
-  const ProfessionalMainScreen({super.key});
+  const ProfessionalMainScreen({Key? key}) : super(key: key);
 
   @override
-  State<ProfessionalMainScreen> createState() => _ProfessionalMainScreenState();
+  ProfessionalMainScreenState createState() => ProfessionalMainScreenState();
 }
 
-class _ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
-  bool _isLoading = false;
-  int _currentIndex = 0;
+class ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
+  final List<Widget> _screens = [
+    const ProfessionalHomeScreen(),
+    const ProfessionalCalendarScreen(),
+    const ProfessionalMessagesScreen(),
+    const ProfessionalProfileScreen(),
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
+  int _selectedIndex = 0;
+
+  void showMenu(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: Colors.black38,
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, animation1, animation2) => Container(),
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(-1, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          )),
+          child: FadeTransition(
+            opacity: animation,
+            child: Material(
+              elevation: 0,
+              color: Colors.transparent,
+              child: Stack(
+                children: [
+                  // Semi-transparent overlay
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width,
+                      height: MediaQuery.of(context).size.height,
+                      color: Colors.black.withOpacity(0.3),
+                    ),
+                  ),
+                  // Menu content
+                  Container(
+                    width: MediaQuery.of(context).size.width * 0.75,
+                    height: MediaQuery.of(context).size.height,
+                    decoration: BoxDecoration(
+                      color: Colors.pink[400],
+                      borderRadius: const BorderRadius.horizontal(
+                          right: Radius.circular(32)),
+                    ),
+                    child: SafeArea(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 32, 24, 48),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Menu',
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.close,
+                                      color: Colors.white, size: 28),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _buildAnimatedMenuItem(
+                              Icons.home_outlined, 'Home', animation, 0,
+                              onTap: () {
+                            Navigator.pop(context);
+                            setState(() => _selectedIndex = 0);
+                          }),
+                          _buildAnimatedMenuItem(
+                              Icons.calendar_today, 'Schedule', animation, 1,
+                              onTap: () {
+                            Navigator.pop(context);
+                            setState(() => _selectedIndex = 1);
+                          }),
+                          _buildAnimatedMenuItem(
+                              Icons.message_outlined, 'Messages', animation, 2,
+                              onTap: () {
+                            Navigator.pop(context);
+                            setState(() => _selectedIndex = 2);
+                          }),
+                          _buildAnimatedMenuItem(
+                              Icons.person_outline, 'Profile', animation, 3,
+                              onTap: () {
+                            Navigator.pop(context);
+                            setState(() => _selectedIndex = 3);
+                          }),
+                          const Divider(color: Colors.white24, height: 32),
+                          _buildAnimatedMenuItem(
+                              Icons.work_outline, 'My Services', animation, 4,
+                              onTap: () {
+                            Navigator.pop(context);
+                            // TODO: Navigate to services screen
+                          }),
+                          _buildAnimatedMenuItem(
+                              Icons.payments_outlined, 'Earnings', animation, 5,
+                              onTap: () {
+                            Navigator.pop(context);
+                            // TODO: Navigate to earnings screen
+                          }),
+                          _buildAnimatedMenuItem(
+                              Icons.settings_outlined, 'Settings', animation, 6,
+                              onTap: () {
+                            Navigator.pop(context);
+                            // TODO: Navigate to settings screen
+                          }),
+                          _buildAnimatedMenuItem(Icons.help_outline,
+                              'Help & Support', animation, 7, onTap: () {
+                            Navigator.pop(context);
+                            // TODO: Navigate to help screen
+                          }),
+                          const Spacer(),
+                          _buildAnimatedMenuItem(
+                              Icons.logout, 'Sign Out', animation, 8,
+                              onTap: () {
+                            Navigator.pop(context);
+                            context.read<AuthProvider>().signOut();
+                          }),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    try {
-      final databaseProvider = context.read<DatabaseProvider>();
-      await databaseProvider.loadInitialData();
-
-      final statsProvider = context.read<ProfessionalStatsProvider>();
-      final professional = databaseProvider.professionals.firstOrNull;
-      if (professional != null) {
-        await statsProvider.loadStats(professional.id);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  Widget _buildAnimatedMenuItem(
+      IconData icon, String title, Animation<double> animation, int index,
+      {VoidCallback? onTap}) {
+    return SlideTransition(
+      position: Tween<Offset>(
+        begin: const Offset(-1, 0),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(
+        parent: animation,
+        curve: Interval(
+          0.4 + (index * 0.1),
+          1.0,
+          curve: Curves.easeOutCubic,
+        ),
+      )),
+      child: FadeTransition(
+        opacity: Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).animate(CurvedAnimation(
+          parent: animation,
+          curve: Interval(
+            0.4 + (index * 0.1),
+            1.0,
+            curve: Curves.easeOut,
+          ),
+        )),
+        child: Material(
+          color: Colors.transparent,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+            leading: Icon(icon, color: Colors.white, size: 28),
+            title: Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            onTap: onTap,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        title: Text(
-          'Dashboard',
-          style: AppTextStyles.h2,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () =>
-                Navigator.pushNamed(context, '/professional/notifications'),
+    return Consumer<BottomNavigationProvider>(
+      builder: (context, navigationProvider, _) {
+        return Scaffold(
+          body: IndexedStack(
+            index: navigationProvider.selectedIndex,
+            children: _screens.map((screen) {
+              return Builder(
+                builder: (context) => GestureDetector(
+                  onTap: () => FocusScope.of(context).unfocus(),
+                  child: screen,
+                ),
+              );
+            }).toList(),
           ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () =>
-                Navigator.pushNamed(context, '/professional/edit-profile'),
+          bottomNavigationBar: FlashyTabBar(
+            selectedIndex: navigationProvider.selectedIndex,
+            showElevation: true,
+            onItemSelected: (index) => navigationProvider.setIndex(index),
+            items: [
+              FlashyTabBarItem(
+                icon: const Icon(Icons.home_outlined),
+                title: const Text('Home'),
+                activeColor: Colors.pink,
+                inactiveColor: Colors.grey,
+              ),
+              FlashyTabBarItem(
+                icon: const Icon(Icons.calendar_today),
+                title: const Text('Schedule'),
+                activeColor: Colors.pink,
+                inactiveColor: Colors.grey,
+              ),
+              FlashyTabBarItem(
+                icon: const Icon(Icons.message_outlined),
+                title: const Text('Messages'),
+                activeColor: Colors.pink,
+                inactiveColor: Colors.grey,
+              ),
+              FlashyTabBarItem(
+                icon: const Icon(Icons.person_outline),
+                title: const Text('Profile'),
+                activeColor: Colors.pink,
+                inactiveColor: Colors.grey,
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _isLoading ? const Center(child: LoadingIndicator()) : _buildBody(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.work_outline),
-            label: 'Jobs',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today_outlined),
-            label: 'Schedule',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            label: 'Settings',
-          ),
-        ],
-      ),
+        );
+      },
     );
-  }
-
-  Widget _buildBody() {
-    switch (_currentIndex) {
-      case 0:
-        return _buildDashboardTab();
-      case 1:
-        return _buildJobsTab();
-      case 2:
-        return _buildScheduleTab();
-      case 3:
-        return _buildSettingsTab();
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-
-  Widget _buildDashboardTab() {
-    final professional =
-        context.watch<DatabaseProvider>().professionals.firstOrNull;
-    final stats = context.watch<ProfessionalStatsProvider>().stats;
-
-    if (professional == null) return const SizedBox.shrink();
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          'Welcome back, ${professional.profile.name}!',
-          style: AppTextStyles.h3,
-        ),
-        const SizedBox(height: 24),
-
-        // Stats Cards
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                title: 'Total Earnings',
-                value: '\$${stats.totalEarnings.toStringAsFixed(2)}',
-                icon: Icons.attach_money,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildStatCard(
-                title: 'Jobs Completed',
-                value: stats.completedJobs.toString(),
-                icon: Icons.check_circle_outline,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                title: 'Active Jobs',
-                value: (stats.totalJobs -
-                        stats.completedJobs -
-                        stats.cancelledJobs)
-                    .toString(),
-                icon: Icons.work_outline,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildStatCard(
-                title: 'Rating',
-                value: '${stats.averageRating.toStringAsFixed(1)} ⭐',
-                icon: Icons.star_outline,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 32),
-
-        // Quick Actions
-        Text('Quick Actions', style: AppTextStyles.h3),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: CustomButton(
-                onPressed: () =>
-                    Navigator.pushNamed(context, '/professional/availability'),
-                text: 'Set Availability',
-                type: ButtonType.secondary,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: CustomButton(
-                onPressed: () => Navigator.pushNamed(
-                    context, '/professional/manage-services'),
-                text: 'Manage Services',
-                type: ButtonType.secondary,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: AppColors.accent),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: AppTextStyles.h3,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildJobsTab() {
-    return const Center(child: Text('Jobs Tab'));
-  }
-
-  Widget _buildScheduleTab() {
-    return const Center(child: Text('Schedule Tab'));
-  }
-
-  Widget _buildSettingsTab() {
-    return const Center(child: Text('Settings Tab'));
   }
 }
