@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/colors.dart';
-import '../../../providers/database_provider.dart';
 import '../../../providers/bottom_navigation_provider.dart';
-import '../../common/widgets/loading_indicator.dart';
 import '../../common/widgets/bottom_navigation.dart';
 import 'homeowner_home_screen.dart';
 import 'homeowner_profile_screen.dart';
