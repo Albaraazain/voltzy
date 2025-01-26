@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/colors.dart';
 import '../../../providers/database_provider.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../models/service_category_card.dart';
 import 'category_services_screen.dart';
+import '../../../providers/bottom_navigation_provider.dart';
+import '../../../providers/auth_provider.dart';
 
 class HomeownerHomeScreen extends StatefulWidget {
   const HomeownerHomeScreen({super.key});
@@ -147,16 +148,57 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
                             ),
                           ),
                           _buildAnimatedMenuItem(
-                              Icons.store, 'Store', animation, 0),
+                              Icons.home_outlined, 'Home', animation, 0,
+                              onTap: () {
+                            Navigator.pop(context);
+                            context
+                                .read<BottomNavigationProvider>()
+                                .setIndex(0);
+                          }),
                           _buildAnimatedMenuItem(
-                              Icons.star, 'Premium', animation, 1),
+                              Icons.favorite_outline, 'Favorites', animation, 1,
+                              onTap: () {
+                            Navigator.pop(context);
+                            context
+                                .read<BottomNavigationProvider>()
+                                .setIndex(1);
+                          }),
                           _buildAnimatedMenuItem(
-                              Icons.settings, 'Settings', animation, 2),
+                              Icons.access_time, 'My Jobs', animation, 2,
+                              onTap: () {
+                            Navigator.pop(context);
+                            context
+                                .read<BottomNavigationProvider>()
+                                .setIndex(2);
+                          }),
                           _buildAnimatedMenuItem(
-                              Icons.help, 'Support', animation, 3),
+                              Icons.person_outline, 'Profile', animation, 3,
+                              onTap: () {
+                            Navigator.pop(context);
+                            context
+                                .read<BottomNavigationProvider>()
+                                .setIndex(3);
+                          }),
+                          const Divider(color: Colors.white24, height: 32),
+                          _buildAnimatedMenuItem(
+                              Icons.settings_outlined, 'Settings', animation, 4,
+                              onTap: () {
+                            Navigator.pop(context);
+                            // TODO: Navigate to settings screen
+                          }),
+                          _buildAnimatedMenuItem(Icons.help_outline,
+                              'Help & Support', animation, 5, onTap: () {
+                            Navigator.pop(context);
+                            // TODO: Navigate to help screen
+                          }),
                           const Spacer(),
                           _buildAnimatedMenuItem(
-                              Icons.logout, 'Log out', animation, 4),
+                              Icons.logout, 'Sign Out', animation, 6,
+                              onTap: () {
+                            Navigator.pop(context);
+                            // TODO: Implement sign out
+                            context.read<AuthProvider>().signOut();
+                          }),
                           const SizedBox(height: 32),
                         ],
                       ),
@@ -172,7 +214,8 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
   }
 
   Widget _buildAnimatedMenuItem(
-      IconData icon, String title, Animation<double> animation, int index) {
+      IconData icon, String title, Animation<double> animation, int index,
+      {VoidCallback? onTap}) {
     return SlideTransition(
       position: Tween<Offset>(
         begin: const Offset(-1, 0),
@@ -210,10 +253,7 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            onTap: () {
-              Navigator.pop(context);
-              // Handle menu item tap
-            },
+            onTap: onTap,
           ),
         ),
       ),
