@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/services/logger_service.dart';
-import '../models/service_model.dart';
+import '../models/base_service_model.dart';
+import '../models/category_model.dart';
+import '../models/professional_service_model.dart';
 import '../models/service_category_model.dart';
 
 class ServiceRepository {
@@ -8,7 +10,8 @@ class ServiceRepository {
 
   ServiceRepository(this._client);
 
-  Future<List<Service>> getAllServices() async {
+  // Base Service Operations
+  Future<List<BaseService>> getAllBaseServices() async {
     try {
       final response = await _client
           .from('services')
@@ -16,124 +19,287 @@ class ServiceRepository {
           .filter('deleted_at', 'is', null)
           .order('name');
 
-      return response.map((row) => Service.fromJson(row)).toList();
+      return response.map((row) => BaseService.fromJson(row)).toList();
     } catch (e, stackTrace) {
-      LoggerService.error('Failed to load services', e, stackTrace);
+      LoggerService.error('Failed to load base services', e, stackTrace);
       rethrow;
     }
   }
 
-  Future<List<Service>> getServicesByCategory(String categoryId) async {
+  Future<List<BaseService>> getServicesByCategory(String categoryId) async {
     try {
       final response = await _client
           .from('services')
           .select()
           .eq('category_id', categoryId)
-          .filter('deleted_at', 'is', null)
           .order('name');
 
-      return response.map((row) => Service.fromJson(row)).toList();
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to load services by category', e, stackTrace);
+      return (response as List)
+          .map((data) => BaseService.fromJson(data))
+          .toList();
+    } catch (e) {
+      LoggerService.error('Failed to get services by category', e);
       rethrow;
     }
   }
 
-  Future<Service> createService({
-    required String categoryId,
-    required String name,
-    String? description,
-    double? basePrice,
-    int? estimatedDuration,
-  }) async {
-    try {
-      final response = await _client
-          .from('services')
-          .insert({
-            'category_id': categoryId,
-            'name': name,
-            'description': description,
-            'base_price': basePrice,
-            'estimated_duration': estimatedDuration,
-          })
-          .select()
-          .single();
-
-      return Service.fromJson(response);
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to create service', e, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<Service> updateService(
-    String serviceId, {
-    String? name,
-    String? description,
-    double? basePrice,
-    int? estimatedDuration,
-  }) async {
-    try {
-      final updates = {
-        if (name != null) 'name': name,
-        if (description != null) 'description': description,
-        if (basePrice != null) 'base_price': basePrice,
-        if (estimatedDuration != null) 'estimated_duration': estimatedDuration,
-      };
-
-      if (updates.isEmpty) return getService(serviceId);
-
-      final response = await _client
-          .from('services')
-          .update(updates)
-          .eq('id', serviceId)
-          .select()
-          .single();
-
-      return Service.fromJson(response);
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to update service', e, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<void> deleteService(String serviceId) async {
-    try {
-      await _client.from('services').update(
-          {'deleted_at': DateTime.now().toIso8601String()}).eq('id', serviceId);
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to delete service', e, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<Service> getService(String serviceId) async {
+  Future<BaseService?> getBaseServiceById(String id) async {
     try {
       final response = await _client
           .from('services')
           .select()
-          .eq('id', serviceId)
+          .eq('id', id)
           .filter('deleted_at', 'is', null)
           .single();
 
-      return Service.fromJson(response);
+      return response == null ? null : BaseService.fromJson(response);
     } catch (e, stackTrace) {
-      LoggerService.error('Failed to get service', e, stackTrace);
+      LoggerService.error('Failed to get base service', e, stackTrace);
       rethrow;
     }
   }
 
-  Future<List<ServiceCategory>> getAllCategories() async {
+  // Category Operations
+  Future<List<Category>> getAllCategories() async {
     try {
       final response = await _client
           .from('service_categories')
           .select()
-          .filter('deleted_at', 'is', null)
+          .eq('deleted_at', '')
           .order('name');
 
-      return response.map((row) => ServiceCategory.fromJson(row)).toList();
+      return (response as List)
+          .map((data) => Category.fromJson(data as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      LoggerService.error('Failed to get service categories', e);
+      rethrow;
+    }
+  }
+
+  Future<ServiceCategory?> getCategoryById(String id) async {
+    try {
+      final response = await _client
+          .from('service_categories')
+          .select()
+          .eq('id', id)
+          .filter('deleted_at', 'is', null)
+          .single();
+
+      return response == null ? null : ServiceCategory.fromJson(response);
     } catch (e, stackTrace) {
-      LoggerService.error('Failed to load service categories', e, stackTrace);
+      LoggerService.error('Failed to get category', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  // Professional Service Operations
+  Future<List<ProfessionalService>> getProfessionalServices(
+      String professionalId) async {
+    try {
+      final response = await _client.from('professional_services').select('''
+            *,
+            service:services (*)
+          ''').eq('professional_id', professionalId);
+
+      return response.map((row) {
+        final baseService = BaseService.fromJson(row['service']);
+        return ProfessionalService.fromJson(row, baseService);
+      }).toList();
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to load professional services', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<ProfessionalService> addServiceToProfessional({
+    required String professionalId,
+    required String serviceId,
+    double? customPrice,
+    double? customDuration,
+  }) async {
+    try {
+      // First get the base service
+      final baseService = await getBaseServiceById(serviceId);
+      if (baseService == null) throw Exception('Base service not found');
+
+      // Add professional service
+      final response = await _client
+          .from('professional_services')
+          .insert({
+            'professional_id': professionalId,
+            'service_id': serviceId,
+            'custom_price': customPrice,
+            'custom_duration': customDuration,
+            'is_active': true,
+            'available_today': true,
+          })
+          .select('*, service:services (*)')
+          .single();
+
+      return ProfessionalService.fromJson(response, baseService);
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to add service to professional', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<bool> toggleServiceActive(
+      String professionalId, String serviceId, bool isActive) async {
+    try {
+      LoggerService.debug(
+          'Toggling service $serviceId active state to $isActive for professional $professionalId');
+
+      await _client
+          .from('professional_services')
+          .update({'is_active': isActive}).match({
+        'service_id': serviceId,
+        'professional_id': professionalId,
+      });
+
+      return true;
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to toggle service active state', e, stackTrace);
+      return false;
+    }
+  }
+
+  Future<bool> toggleServiceAvailability(
+      String professionalId, String serviceId, bool availableToday) async {
+    try {
+      LoggerService.debug(
+          'Toggling service $serviceId availability to $availableToday for professional $professionalId');
+
+      await _client
+          .from('professional_services')
+          .update({'available_today': availableToday}).match({
+        'service_id': serviceId,
+        'professional_id': professionalId,
+      });
+
+      return true;
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to toggle service availability', e, stackTrace);
+      return false;
+    }
+  }
+
+  Future<ProfessionalService> getProfessionalServiceById(
+      String serviceId, String professionalId) async {
+    try {
+      final response = await _client.from('professional_services').select('''
+            *,
+            service:services (*)
+          ''').match({
+        'service_id': serviceId,
+        'professional_id': professionalId,
+      }).single();
+
+      final baseService = BaseService.fromJson(response['service']);
+      return ProfessionalService.fromJson(response, baseService);
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to get professional service', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> removeServiceFromProfessional(
+      String professionalId, String serviceId) async {
+    try {
+      await _client.from('professional_services').delete().match({
+        'professional_id': professionalId,
+        'service_id': serviceId,
+      });
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to remove service from professional', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> updateProfessionalService(
+    String professionalId,
+    String serviceId, {
+    double? customPrice,
+    double? customDuration,
+    bool? isActive,
+  }) async {
+    try {
+      final updates = {
+        if (customPrice != null) 'custom_price': customPrice,
+        if (customDuration != null) 'custom_duration': customDuration,
+        if (isActive != null) 'is_active': isActive,
+      };
+
+      if (updates.isEmpty) return;
+
+      await _client.from('professional_services').update(updates).match({
+        'professional_id': professionalId,
+        'service_id': serviceId,
+      });
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to update professional service', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<BaseService>> searchServices(String query) async {
+    try {
+      final response = await _client
+          .from('services')
+          .select()
+          .ilike('name', '%$query%')
+          .order('name');
+
+      return (response as List)
+          .map((data) => BaseService.fromJson(data))
+          .toList();
+    } catch (e) {
+      LoggerService.error('Failed to search services', e);
+      rethrow;
+    }
+  }
+
+  Future<Map<String, double>> getBaseServicePriceRange(String serviceId) async {
+    try {
+      final response = await _client
+          .from('professional_services')
+          .select('custom_price')
+          .eq('service_id', serviceId)
+          .not('custom_price', 'is', null);
+
+      final prices = (response as List)
+          .map((row) => (row['custom_price'] as num).toDouble())
+          .toList();
+
+      if (prices.isEmpty) {
+        final baseService = await getBaseServiceById(serviceId);
+        if (baseService == null) throw Exception('Base service not found');
+        return {
+          'min': baseService.basePrice,
+          'max': baseService.basePrice,
+          'avg': baseService.basePrice,
+        };
+      }
+
+      prices.sort();
+      final min = prices.first;
+      final max = prices.last;
+      final avg = prices.reduce((a, b) => a + b) / prices.length;
+
+      return {
+        'min': min,
+        'max': max,
+        'avg': avg,
+      };
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to get base service price range', e, stackTrace);
       rethrow;
     }
   }
