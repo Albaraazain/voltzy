@@ -4,10 +4,10 @@ import 'package:provider/provider.dart';
 import '../../../providers/database_provider.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/widgets/loading_indicator.dart';
-import '../../../models/service_model.dart';
+import '../../../models/base_service_model.dart';
 
 class BroadcastRequestMapScreen extends StatefulWidget {
-  final Service service;
+  final BaseService service;
   final double initialLat;
   final double initialLng;
 
