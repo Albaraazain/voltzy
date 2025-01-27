@@ -54,15 +54,16 @@ class _DirectRequestMapScreenState extends State<DirectRequestMapScreen> {
       setState(() {
         _professionals = professionals;
         _markers = professionals.map((professional) {
+          final lat = professional.locationLat ?? 0.0;
+          final lng = professional.locationLng ?? 0.0;
+          final position = LatLng(lat, lng);
+
           return Marker(
             markerId: MarkerId(professional.id),
-            position: LatLng(
-              professional.location?.latitude ?? 0,
-              professional.location?.longitude ?? 0,
-            ),
+            position: position,
             infoWindow: InfoWindow(
-              title: professional.profile.name,
-              snippet: '\$${professional.hourlyRate}/hr',
+              title: professional.profile?.name ?? 'Unknown Professional',
+              snippet: 'Tap to view profile',
             ),
             onTap: () => _onMarkerTapped(professional),
           );
@@ -91,7 +92,7 @@ class _DirectRequestMapScreenState extends State<DirectRequestMapScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              professional.profile.name,
+              professional.profile?.name ?? 'Unknown Professional',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
