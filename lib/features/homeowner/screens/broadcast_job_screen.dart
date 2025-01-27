@@ -54,13 +54,27 @@ class _BroadcastJobScreenState extends State<BroadcastJobScreen> {
       return;
     }
 
+    final databaseProvider =
+        Provider.of<DatabaseProvider>(context, listen: false);
+    final homeowner = databaseProvider.currentHomeowner;
+
+    if (homeowner?.locationLat == null || homeowner?.locationLng == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Please set your location before proceeding')),
+        );
+      }
+      return;
+    }
+
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => BroadcastRequestMapScreen(
           service: widget.service,
-          initialLat: 0.0, // You should get user's current location here
-          initialLng: 0.0,
+          initialLat: homeowner!.locationLat!,
+          initialLng: homeowner.locationLng!,
           hours: _selectedHours,
           budget: _selectedBudget,
           description: _descriptionController.text,
