@@ -69,20 +69,21 @@ class HomeownerJobCard extends StatelessWidget {
                       const Icon(Icons.handyman_outlined, size: 16),
                       const SizedBox(width: 4),
                       Text(
-                        job.professional!.profile.name,
+                        job.professional?.profile?.name ??
+                            'Unknown Professional',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppColors.primary,
                             ),
                       ),
                       ...[
-                      const SizedBox(width: 8),
-                      Icon(Icons.star, size: 16, color: Colors.amber[700]),
-                      const SizedBox(width: 2),
-                      Text(
-                        job.professional!.rating.toStringAsFixed(1),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Icon(Icons.star, size: 16, color: Colors.amber[700]),
+                        const SizedBox(width: 2),
+                        Text(
+                          (job.professional?.rating ?? 0.0).toStringAsFixed(1),
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
                     ],
                   ),
                 ),
