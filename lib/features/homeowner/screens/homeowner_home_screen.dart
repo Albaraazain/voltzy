@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/database_provider.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../models/service_category_card.dart';
-import 'category_services_screen.dart';
+import 'category_details_screen.dart';
 import '../../../providers/bottom_navigation_provider.dart';
 import '../../../providers/auth_provider.dart';
 
@@ -396,10 +396,9 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => CategoryServicesScreen(
-                  categoryName: category.name.replaceAll(' Services', ''),
-                  categoryColor: color,
+                builder: (context) => CategoryDetailsScreen(
                   categoryId: category.id,
+                  categoryName: category.name.replaceAll(' Services', ''),
                 ),
               ),
             );
