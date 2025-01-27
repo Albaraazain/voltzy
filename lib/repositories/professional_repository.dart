@@ -1,194 +1,281 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../core/services/logger_service.dart';
+import 'package:geolocator/geolocator.dart';
+
 import '../models/professional_model.dart';
+import '../core/services/logger_service.dart';
+import '../models/base_service_model.dart';
+import '../models/professional_service_model.dart';
 import '../models/profile_model.dart' as profile_models;
-import '../models/service_model.dart';
 
 class ProfessionalRepository {
   final SupabaseClient _client;
 
   ProfessionalRepository(this._client);
 
-  Future<Professional?> getCurrentProfessional(String userId) async {
+  Future<Professional?> getProfessionalById(String id) async {
     try {
-      LoggerService.info('Loading professional data for profile: $userId');
-
-      final queryString = '''
+      final response = await _client.from('professionals').select('''
         *,
-        profile:profiles (
-          id,
-          email,
-          user_type,
-          name,
-          created_at,
-          last_login_at
-        ),
-        professional_services!professional_services_professional_id_fkey (
+        profile:profiles (*),
+        professional_services:professional_services (
+          *,
           service:services (*)
         )
-      ''';
+      ''').eq('id', id).single();
 
-      final response = await _client
-          .from('professionals')
-          .select(queryString)
-          .eq('id', userId)
-          .maybeSingle();
+      return response == null ? null : Professional.fromJson(response);
+    } catch (e) {
+      LoggerService.error('Failed to get professional by id', e);
+      rethrow;
+    }
+  }
 
-      if (response == null) {
-        LoggerService.error(
-            'No professional record found for profile: $userId');
-        return null;
-      }
+  Future<List<Professional>> searchProfessionals(String query) async {
+    try {
+      final response = await _client.from('professionals').select('''
+        *,
+        profile:profiles (*),
+        professional_services:professional_services (
+          *,
+          service:services (*)
+        )
+      ''').ilike('profile.name', '%$query%').order('created_at');
 
-      final userProfile = profile_models.Profile.fromJson(response['profile']);
-      return Professional.fromJson({
-        ...response,
-        'profile': userProfile.toJson(),
-      });
+      return (response as List)
+          .map((data) => Professional.fromJson(data))
+          .toList();
+    } catch (e) {
+      LoggerService.error('Failed to search professionals', e);
+      rethrow;
+    }
+  }
+
+  Future<List<Professional>> getNearbyProfessionals({
+    required double latitude,
+    required double longitude,
+    required double radiusKm,
+    String? categoryId,
+  }) async {
+    try {
+      var rpcParams = {
+        'lat': latitude,
+        'lng': longitude,
+        'radius_km': radiusKm,
+        'category_id': categoryId,
+      };
+
+      // Remove null values
+      rpcParams.removeWhere((key, value) => value == null);
+
+      final response = await _client.rpc(
+        'get_nearby_professionals',
+        params: rpcParams,
+      );
+
+      return (response as List<dynamic>)
+          .map((json) => Professional.fromJson(json as Map<String, dynamic>))
+          .toList();
     } catch (e, stackTrace) {
-      LoggerService.error('Failed to load professional data', e, stackTrace);
+      LoggerService.error('Failed to get nearby professionals', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<Professional>> getProfessionalsByService(String serviceId) async {
+    try {
+      final response = await _client.from('professionals').select('''
+        *,
+        profile:profiles (*),
+        professional_services:professional_services (
+          *,
+          service:services (*)
+        )
+      ''').eq('professional_services.service_id', serviceId);
+
+      return response
+          .map((json) => Professional.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to get professionals by service', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<Professional>> searchProfessionalsNearby(
+      Position userLocation, double radiusInKm) async {
+    try {
+      final response = await _client.from('professionals').select('''
+        *,
+        profile:profiles (*),
+        professional_services:professional_services (
+          *,
+          service:services (*)
+        )
+      ''').not('location_lat', 'is', null).not('location_lng', 'is', null);
+
+      final professionals = (response as List)
+          .map((data) => Professional.fromJson(data))
+          .toList();
+
+      return professionals.where((professional) {
+        if (professional.locationLat == null ||
+            professional.locationLng == null) return false;
+
+        final distance = Geolocator.distanceBetween(
+            userLocation.latitude,
+            userLocation.longitude,
+            professional.locationLat!,
+            professional.locationLng!);
+
+        return distance <= (radiusInKm * 1000); // Convert km to meters
+      }).toList();
+    } catch (e) {
+      LoggerService.error('Failed to search professionals nearby', e);
+      rethrow;
+    }
+  }
+
+  Future<void> updateProfessionalLocation(
+      String professionalId, double lat, double lng) async {
+    try {
+      await _client.from('professionals').update({
+        'location_lat': lat,
+        'location_lng': lng,
+      }).eq('id', professionalId);
+    } catch (e) {
+      LoggerService.error('Failed to update professional location', e);
+      rethrow;
+    }
+  }
+
+  Future<void> updateProfessionalProfile(
+    String professionalId, {
+    String? bio,
+    String? phoneNumber,
+    String? licenseNumber,
+    int? yearsOfExperience,
+    List<String>? specialties,
+    double? hourlyRate,
+    bool? isAvailable,
+  }) async {
+    try {
+      final updates = {
+        if (bio != null) 'bio': bio,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+        if (licenseNumber != null) 'license_number': licenseNumber,
+        if (yearsOfExperience != null) 'years_of_experience': yearsOfExperience,
+        if (specialties != null) 'specialties': specialties,
+        if (hourlyRate != null) 'hourly_rate': hourlyRate,
+        if (isAvailable != null) 'is_available': isAvailable,
+      };
+
+      if (updates.isEmpty) return;
+
+      await _client
+          .from('professionals')
+          .update(updates)
+          .eq('id', professionalId);
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to update professional profile', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> updateProfessionalAvailability(
+      String professionalId, bool isAvailable) async {
+    try {
+      await _client
+          .from('professionals')
+          .update({'is_available': isAvailable}).eq('id', professionalId);
+    } catch (e) {
+      LoggerService.error('Failed to update professional availability', e);
+      rethrow;
+    }
+  }
+
+  Future<Professional?> getCurrentProfessional(String userId) async {
+    try {
+      final response = await _client.from('professionals').select('''
+        *,
+        profile:profiles (*),
+        professional_services:professional_services (
+          *,
+          service:services (*)
+        )
+      ''').eq('id', userId).single();
+
+      if (response == null) return null;
+      return Professional.fromJson(response);
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to get current professional', e, stackTrace);
       rethrow;
     }
   }
 
   Future<List<Professional>> getAllProfessionals() async {
     try {
-      LoggerService.debug('🔄 Loading all professionals...');
-
       final response = await _client.from('professionals').select('''
         *,
         profile:profiles (*),
-        professional_services!professional_services_professional_id_fkey (
+        professional_services:professional_services (
+          *,
           service:services (*)
         )
-      ''');
+      ''').order('created_at');
 
-      final List<Professional> professionals = [];
-      for (final row in response) {
-        try {
-          if (row['profile'] == null) continue;
-
-          final profile = profile_models.Profile.fromJson(row['profile']);
-          if (profile.userType != profile_models.UserType.professional)
-            continue;
-
-          final services = (row['professional_services'] as List<dynamic>?)
-                  ?.map((s) => Service.fromJson(s['service']))
-                  .toList() ??
-              [];
-
-          professionals.add(Professional.fromJson({
-            ...row,
-            'profile': profile.toJson(),
-            'services': services,
-          }));
-        } catch (e) {
-          LoggerService.error('Failed to parse professional: ${row['id']}', e);
-        }
-      }
-
-      return professionals;
+      return response.map((json) => Professional.fromJson(json)).toList();
     } catch (e, stackTrace) {
-      LoggerService.error('Failed to load professionals', e, stackTrace);
+      LoggerService.error('Failed to get all professionals', e, stackTrace);
       rethrow;
     }
   }
 
-  Future<List<Service>> getServicesForProfessional(
-      String professionalId) async {
+  Future<void> addProfessionalService(
+      String professionalId, String serviceId, double price) async {
     try {
-      LoggerService.info('Loading services for professional: $professionalId');
-
-      final response = await _client
-          .from('professional_services')
-          .select('''
-            *,
-            service:services (*)
-          ''')
-          .eq('professional_id', professionalId)
-          .eq('is_active', true)
-          .order('created_at');
-
-      final services = response.map((row) {
-        final serviceData = row['service'] as Map<String, dynamic>;
-        // If there's a custom price or duration, override the default values
-        if (row['custom_price'] != null) {
-          serviceData['base_price'] = row['custom_price'];
-        }
-        if (row['custom_duration'] != null) {
-          serviceData['estimated_duration'] = row['custom_duration'];
-        }
-        return Service.fromJson(serviceData);
-      }).toList();
-
-      return services;
-    } catch (e, stackTrace) {
-      LoggerService.error(
-          'Failed to load professional services', e, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<void> addServiceToProfessional(
-    String professionalId,
-    String serviceId, {
-    double? customPrice,
-    int? customDuration,
-  }) async {
-    try {
-      await _client.from('professional_services').upsert({
+      await _client.from('professional_services').insert({
         'professional_id': professionalId,
         'service_id': serviceId,
-        'is_active': true,
-        'custom_price': customPrice,
-        'custom_duration': customDuration,
+        'price': price,
       });
-    } catch (e, stackTrace) {
-      LoggerService.error(
-          'Failed to add service to professional', e, stackTrace);
+    } catch (e) {
+      LoggerService.error('Failed to add professional service', e);
       rethrow;
     }
   }
 
-  Future<void> removeServiceFromProfessional(
-    String professionalId,
-    String serviceId,
-  ) async {
+  Future<void> removeProfessionalService(
+      String professionalId, String serviceId) async {
     try {
       await _client
           .from('professional_services')
           .delete()
-          .match({'professional_id': professionalId, 'service_id': serviceId});
-    } catch (e, stackTrace) {
-      LoggerService.error(
-          'Failed to remove service from professional', e, stackTrace);
+          .eq('professional_id', professionalId)
+          .eq('service_id', serviceId);
+    } catch (e) {
+      LoggerService.error('Failed to remove professional service', e);
       rethrow;
     }
   }
 
-  Future<void> updateProfessionalService(
-    String professionalId,
-    String serviceId, {
-    double? customPrice,
-    int? customDuration,
-    bool? isActive,
-  }) async {
+  Future<List<Professional>> getTopRatedProfessionals({int limit = 10}) async {
     try {
-      final updates = {
-        if (customPrice != null) 'custom_price': customPrice,
-        if (customDuration != null) 'custom_duration': customDuration,
-        if (isActive != null) 'is_active': isActive,
-      };
+      final response = await _client.from('professionals').select('''
+        *,
+        profile:profiles (*),
+        professional_services:professional_services (
+          *,
+          service:services (*)
+        )
+      ''').order('rating', ascending: false).limit(limit);
 
-      if (updates.isEmpty) return;
-
-      await _client
-          .from('professional_services')
-          .update(updates)
-          .match({'professional_id': professionalId, 'service_id': serviceId});
-    } catch (e, stackTrace) {
-      LoggerService.error(
-          'Failed to update professional service', e, stackTrace);
+      return (response as List)
+          .map((data) => Professional.fromJson(data))
+          .toList();
+    } catch (e) {
+      LoggerService.error('Failed to get top rated professionals', e);
       rethrow;
     }
   }
