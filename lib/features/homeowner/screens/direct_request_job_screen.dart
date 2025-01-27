@@ -98,7 +98,8 @@ class _DirectRequestJobScreenState extends State<DirectRequestJobScreen> {
                   ),
             ),
             const SizedBox(height: 16),
-            _buildDetailRow('Professional', widget.professional.profile.name),
+            _buildDetailRow('Professional',
+                widget.professional.profile?.name ?? 'Professional'),
             _buildDetailRow('Service', widget.service.name),
             _buildDetailRow(
               'Date',
