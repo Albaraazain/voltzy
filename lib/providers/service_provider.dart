@@ -17,8 +17,9 @@ class ServiceProvider extends ChangeNotifier {
 
     try {
       final response = await _client
-          .from('categories')
+          .from('service_categories')
           .select('*, services(*)')
+          .filter('deleted_at', 'is', null)
           .order('name');
 
       _categories =
