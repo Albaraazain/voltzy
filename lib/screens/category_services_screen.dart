@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../models/base_service_model.dart';
 import '../models/category_model.dart';
 import '../providers/database_provider.dart';
+import '../features/homeowner/screens/broadcast_job_screen.dart';
 
 class CategoryServicesScreen extends StatefulWidget {
   final Category category;
@@ -72,7 +72,14 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
   }
 
   void _navigateToServiceDetails(BaseService service) {
-    // Navigation logic
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BroadcastJobScreen(
+          service: service,
+        ),
+      ),
+    );
   }
 
   @override
