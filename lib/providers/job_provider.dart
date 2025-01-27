@@ -107,17 +107,57 @@ class JobProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      var query = _client.from('jobs').select();
+      var query = _client.from('jobs').select('''
+        *,
+        service:services!jobs_service_id_fkey (*),
+        job_professional_requests (
+          professional:professionals (
+            *,
+            profile:profiles (*)
+          )
+        )
+      ''');
 
       if (status != null && status != 'all') {
         query = query.eq('status', status);
       }
 
       final response = await query.order('created_at', ascending: false);
-      _jobs = response.map<Job>((json) => Job.fromJson(json)).toList();
-    } catch (e) {
+      LoggerService.debug('Raw response from database: $response');
+
+      // After getting jobs, fetch homeowner profiles
+      final homeownerIds =
+          response.map((job) => job['homeowner_id'] as String).toSet().toList();
+      final homeownersResponse = await _client
+          .from('homeowners')
+          .select('*, profile:profiles(*)')
+          .inFilter('id', homeownerIds);
+
+      // Create a map of homeowner data
+      final homeownerMap = {
+        for (var h in homeownersResponse) h['id'] as String: h
+      };
+
+      _jobs = response.map<Job>((json) {
+        try {
+          LoggerService.debug('Processing job with ID: ${json['id']}');
+          LoggerService.debug('Service data: ${json['service']}');
+
+          // Add homeowner data to the job JSON
+          final homeownerId = json['homeowner_id'] as String;
+          json['homeowner'] = homeownerMap[homeownerId];
+
+          return Job.fromJson(json);
+        } catch (e, stackTrace) {
+          LoggerService.error(
+              'Error processing job ${json['id']}: $e', e, stackTrace);
+          rethrow;
+        }
+      }).toList();
+    } catch (e, stackTrace) {
       _error = e.toString();
-      LoggerService.error('Error loading jobs', e);
+      LoggerService.error('Error loading jobs', e, stackTrace);
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
