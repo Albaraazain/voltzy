@@ -8,7 +8,6 @@ import '../models/reschedule_request_model.dart';
 class ScheduleProvider extends ChangeNotifier {
   final SupabaseClient _supabase;
   String? _currentProfessionalId;
-  String? _currentHomeownerId;
   List<RescheduleRequest> _rescheduleRequests = [];
   List<ScheduleSlot> _scheduleSlots = [];
   bool _loading = false;
@@ -32,8 +31,8 @@ class ScheduleProvider extends ChangeNotifier {
       .where((request) => request.status == RescheduleRequest.STATUS_DECLINED)
       .toList();
 
-  Future<void> setCurrentHomeownerId(String homeownerId) async {
-    _currentHomeownerId = homeownerId;
+  Future<void> setCurrentProfessionalId(String professionalId) async {
+    _currentProfessionalId = professionalId;
     notifyListeners();
   }
 
