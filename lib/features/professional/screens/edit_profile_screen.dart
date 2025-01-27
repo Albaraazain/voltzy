@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../providers/database_provider.dart';
+import '../../../models/professional_model.dart';
 import '../../common/widgets/custom_button.dart';
 import '../../common/widgets/custom_text_field.dart';
 
@@ -47,8 +48,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // Update controllers with professional data
       setState(() {
-        _nameController.text = professional.profile.name;
-        _emailController.text = professional.profile.email;
+        _nameController.text = professional?.profile?.name ?? '';
+        _emailController.text = professional?.profile?.email ?? '';
         _rateController.text = professional.hourlyRate.toString();
         _isInitialized = true;
       });
@@ -99,7 +100,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // Update professional profile
       final updatedProfessional = currentProfessional.copyWith(
-        profile: currentProfessional.profile.copyWith(
+        profile: currentProfessional.profile?.copyWith(
           name: _nameController.text,
           email: _emailController.text,
         ),
@@ -107,7 +108,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         profileImage: imageUrl ?? currentProfessional.profileImage,
       );
 
-      await dbProvider.updateProfessionalProfile(updatedProfessional);
+      await dbProvider.updateProfessional(updatedProfessional);
       if (mounted) Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
