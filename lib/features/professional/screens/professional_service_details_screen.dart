@@ -5,15 +5,20 @@ import '../../../repositories/service_repository.dart';
 import '../../../models/professional_service_model.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../features/professional/screens/edit_professional_service_screen.dart';
+import '../../../features/professional/screens/availability_settings_screen.dart';
+import '../../../features/professional/screens/service_area_settings_screen.dart';
+import '../../../features/professional/screens/emergency_settings_screen.dart';
 
 class InfoCard extends StatelessWidget {
   final String title;
   final Widget child;
+  final VoidCallback? onEdit;
 
   const InfoCard({
     super.key,
     required this.title,
     required this.child,
+    this.onEdit,
   });
 
   @override
@@ -38,7 +43,12 @@ class InfoCard extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              Icon(Icons.edit_outlined, size: 20, color: Colors.grey[400]),
+              if (onEdit != null)
+                GestureDetector(
+                  onTap: onEdit,
+                  child: Icon(Icons.edit_outlined,
+                      size: 20, color: Colors.grey[400]),
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -115,6 +125,50 @@ class _ProfessionalServiceDetailsScreenState
         );
       }
     }
+  }
+
+  void _editBasicInfo(ProfessionalService service) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditProfessionalServiceScreen(
+          service: service,
+        ),
+      ),
+    );
+  }
+
+  void _editAvailability(ProfessionalService service) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AvailabilitySettingsScreen(
+          service: service,
+        ),
+      ),
+    );
+  }
+
+  void _editServiceArea(ProfessionalService service) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ServiceAreaSettingsScreen(
+          service: service,
+        ),
+      ),
+    );
+  }
+
+  void _editEmergencySettings(ProfessionalService service) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EmergencySettingsScreen(
+          service: service,
+        ),
+      ),
+    );
   }
 
   Widget _buildInfoRow(String label, String value,
@@ -243,22 +297,6 @@ class _ProfessionalServiceDetailsScreenState
             final service = snapshot.data!;
             LoggerService.debug('Rendering service details for: ${service.id}');
 
-            final rating = widget.serviceData['rating'] as double? ?? 4.9;
-            final jobsCompleted =
-                widget.serviceData['jobs_completed'] as int? ?? 56;
-            final isPopular =
-                widget.serviceData['is_popular'] as bool? ?? false;
-            final requirements =
-                widget.serviceData['requirements'] as List<dynamic>? ??
-                    [
-                      'Valid professional license',
-                      'Own tools and equipment',
-                      'Transportation',
-                      'Insurance coverage'
-                    ];
-            final serviceArea = widget.serviceData['service_area'] as String? ??
-                'Greater Boston Area (25 mile radius)';
-
             return SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -319,7 +357,7 @@ class _ProfessionalServiceDetailsScreenState
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      '$rating ($jobsCompleted jobs)',
+                                      '${service.rating ?? 'No ratings'} (${service.jobsCompleted ?? 0} jobs)',
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: Colors.grey[600],
@@ -338,7 +376,7 @@ class _ProfessionalServiceDetailsScreenState
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Active',
+                                  service.isActive ? 'Active' : 'Inactive',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey[600],
@@ -348,7 +386,7 @@ class _ProfessionalServiceDetailsScreenState
                             ),
                           ],
                         ),
-                        if (isPopular)
+                        if (service.isPopular ?? false)
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -373,6 +411,7 @@ class _ProfessionalServiceDetailsScreenState
                     // Basic Information
                     InfoCard(
                       title: 'Basic Information',
+                      onEdit: () => _editBasicInfo(service),
                       child: Column(
                         children: [
                           _buildInfoRow(
@@ -416,7 +455,7 @@ class _ProfessionalServiceDetailsScreenState
                             ),
                           _buildInfoRow(
                             'Availability',
-                            'Weekdays, 8 AM - 6 PM',
+                            '${service.weekdayStart} - ${service.weekdayEnd}',
                             hasBorder: false,
                           ),
                         ],
@@ -426,6 +465,7 @@ class _ProfessionalServiceDetailsScreenState
                     // Service Description
                     InfoCard(
                       title: 'Service Description',
+                      onEdit: () => _editBasicInfo(service),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -440,11 +480,7 @@ class _ProfessionalServiceDetailsScreenState
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: [
-                              'Outlet Installation',
-                              'Circuit Setup',
-                              'Wiring',
-                            ]
+                            children: service.serviceTags
                                 .map((tag) => Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,
@@ -471,13 +507,16 @@ class _ProfessionalServiceDetailsScreenState
                     // Service Requirements
                     InfoCard(
                       title: 'Service Requirements',
+                      onEdit: () => _editBasicInfo(service),
                       child: Column(
                         children: [
-                          for (var i = 0; i < requirements.length; i++) ...[
+                          for (var i = 0;
+                              i < service.requirements.length;
+                              i++) ...[
                             if (i > 0) const SizedBox(height: 12),
                             _buildRequirement(
                               i + 1,
-                              requirements[i],
+                              service.requirements[i],
                               'Required for service delivery',
                             ),
                           ],
@@ -488,6 +527,7 @@ class _ProfessionalServiceDetailsScreenState
                     // Service Area
                     InfoCard(
                       title: 'Service Area',
+                      onEdit: () => _editServiceArea(service),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -496,9 +536,9 @@ class _ProfessionalServiceDetailsScreenState
                               Icon(Icons.location_on_outlined,
                                   size: 16, color: Colors.grey[600]),
                               const SizedBox(width: 8),
-                              const Text(
-                                'Greater Boston Area',
-                                style: TextStyle(
+                              Text(
+                                service.serviceAreaCenter,
+                                style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -507,7 +547,7 @@ class _ProfessionalServiceDetailsScreenState
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '25 mile radius from downtown Boston',
+                            '${service.serviceAreaRadius} ${service.serviceAreaUnit} radius',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[600],
@@ -517,42 +557,46 @@ class _ProfessionalServiceDetailsScreenState
                       ),
                     ),
 
-                    // Service Notice
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 24),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.amber[50],
-                        borderRadius: BorderRadius.circular(32),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline,
-                              size: 20, color: Colors.amber[600]),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Service Notice',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.amber[800],
-                                ),
+                    // Emergency Service Notice
+                    if (service.emergencyService)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.amber[50],
+                          borderRadius: BorderRadius.circular(32),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline,
+                                size: 20, color: Colors.amber[600]),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Emergency Service Available',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.amber[800],
+                                    ),
+                                  ),
+                                  if (service.emergencyFee != null)
+                                    Text(
+                                      'Additional fee: \$${service.emergencyFee}/hour',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.amber[700],
+                                      ),
+                                    ),
+                                ],
                               ),
-                              Text(
-                                'Emergency services available with additional charges',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.amber[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
                     // Action Buttons
                     Row(
@@ -578,17 +622,7 @@ class _ProfessionalServiceDetailsScreenState
                         const SizedBox(width: 16),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      EditProfessionalServiceScreen(
-                                    service: service,
-                                  ),
-                                ),
-                              );
-                            },
+                            onPressed: () => _editBasicInfo(service),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.pink[500],
                               foregroundColor: Colors.white,
