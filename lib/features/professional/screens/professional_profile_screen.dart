@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/database_provider.dart';
 import '../../../models/professional_model.dart';
-import '../../../models/service_model.dart';
+import '../../../models/professional_service_model.dart';
+import '../../../core/services/logger_service.dart';
+import '../../../core/config/routes.dart';
 
 class StatCard extends StatelessWidget {
   final String title;
@@ -71,6 +73,7 @@ class ServiceCard extends StatelessWidget {
   final String title;
   final String price;
   final String duration;
+  final ProfessionalService service;
 
   const ServiceCard({
     Key? key,
@@ -78,24 +81,29 @@ class ServiceCard extends StatelessWidget {
     required this.title,
     required this.price,
     required this.duration,
+    required this.service,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        LoggerService.debug('Navigating to service details from profile');
         Navigator.pushNamed(
           context,
-          '/professional/service-details',
+          AppRoutes.professionalServiceDetails,
           arguments: {
-            'name': title,
-            'price': price,
+            'service_id': service.id,
+            'name': service.baseService.name,
+            'price': service.effectivePrice,
             'duration': duration,
-            'is_available': duration.contains('Available'),
+            'description': service.baseService.description ??
+                'Professional ${service.baseService.name} services including installation, maintenance, and repairs.',
+            'category_id': service.baseService.categoryId,
+            'is_active': service.isActive,
+            'available_today': service.availableToday,
             'rating': 4.9,
             'jobs_completed': 156,
-            'description':
-                'Professional $title services including installation, maintenance, and repairs.',
             'requirements': [
               'Valid professional license',
               'Own tools and equipment',
@@ -103,7 +111,7 @@ class ServiceCard extends StatelessWidget {
               'Insurance coverage'
             ],
             'service_area': 'Greater Boston Area (25 mile radius)',
-            'is_popular': title == 'Electrical Installation',
+            'is_popular': service.baseService.name == 'Electrical Installation',
           },
         );
       },
@@ -122,7 +130,7 @@ class ServiceCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  title,
+                  service.baseService.name,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -145,7 +153,7 @@ class ServiceCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '\$$price/hr',
+                '\$${service.effectivePrice}/hr',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -298,7 +306,9 @@ class ProfessionalProfileScreen extends StatelessWidget {
                           ),
                           child: Center(
                             child: Text(
-                              profile.name.substring(0, 2).toUpperCase(),
+                              (professional.profile?.name ?? 'Professional')
+                                  .substring(0, 2)
+                                  .toUpperCase(),
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,
@@ -313,28 +323,21 @@ class ProfessionalProfileScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                profile.name,
+                                professional.profile?.name ?? 'Professional',
                                 style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(Icons.work,
-                                      size: 16, color: Colors.grey[600]),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    professional.specialties.isNotEmpty
-                                        ? professional.specialties.first
-                                        : 'Professional',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
+                              const SizedBox(height: 8),
+                              Text(
+                                professional.specialties.isNotEmpty
+                                    ? professional.specialties.first
+                                    : 'Professional',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Row(
@@ -391,16 +394,45 @@ class ProfessionalProfileScreen extends StatelessWidget {
                           child: Row(
                             children: [
                               Icon(Icons.star,
-                                  size: 16, color: Colors.amber[500]),
+                                  size: 16, color: Colors.amber.shade600),
                               const SizedBox(width: 4),
                               Text(
-                                '${professional.rating} (${professional.jobsCompleted} reviews)',
+                                '${professional.rating != null ? '${professional.rating!.toStringAsFixed(1)} (${professional.reviewCount ?? 0})' : 'No ratings yet'}',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey[600],
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.work, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${professional.jobsCompleted ?? 0} jobs completed',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.attach_money,
+                            size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${professional.hourlyRate != null ? '${professional.hourlyRate!.toStringAsFixed(2)}/hr' : 'Rate varies'}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
                           ),
                         ),
                       ],
@@ -445,15 +477,16 @@ class ProfessionalProfileScreen extends StatelessWidget {
                           bottom: entry.key < services.length - 1 ? 12 : 0,
                         ),
                         child: ServiceCard(
-                          backgroundColor: entry.key == 0
+                          backgroundColor: entry.key % 2 == 0
                               ? Colors.pink[100]!
                               : Colors.amber[100]!,
-                          title: service.name,
-                          price: service.basePrice?.toString() ?? '0',
-                          duration: service.estimatedDuration != null &&
-                                  service.estimatedDuration! <= 60
-                              ? 'Available Today'
-                              : 'Available Tomorrow',
+                          title: service.baseService.name,
+                          price: service.effectivePrice.toString(),
+                          duration: service.effectiveDuration != null &&
+                                  service.effectiveDuration! <= 60
+                              ? '${service.effectiveDuration} min'
+                              : '${(service.effectiveDuration! / 60).toStringAsFixed(1)} hr',
+                          service: service,
                         ),
                       );
                     }).toList(),
