@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/professional_model.dart';
-import '../../../models/service_model.dart';
+import '../../../models/base_service_model.dart';
 import '../../../models/job_model.dart';
 import '../../../providers/database_provider.dart';
 
 class DirectRequestJobScreen extends StatefulWidget {
   final Professional professional;
-  final Service service;
+  final BaseService service;
   final DateTime scheduledDate;
   final int hours;
   final double budget;
