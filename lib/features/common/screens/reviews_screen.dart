@@ -26,7 +26,6 @@ class ReviewsScreen extends StatefulWidget {
 class _ReviewsScreenState extends State<ReviewsScreen> {
   bool _isLoading = false;
   final _responseController = TextEditingController();
-  Review? _selectedReview;
 
   @override
   void initState() {
@@ -61,7 +60,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   }
 
   Future<void> _showResponseDialog(Review review) async {
-    setState(() => _selectedReview = review);
     _responseController.text = review.response ?? '';
 
     await showDialog(
@@ -136,8 +134,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
         ],
       ),
     );
-
-    setState(() => _selectedReview = null);
   }
 
   Widget _buildRatingDistribution(Map<int, int> distribution) {
