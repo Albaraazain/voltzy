@@ -23,8 +23,8 @@ class Service extends BaseService {
   final DateTime? deletedAt;
 
   const Service({
-    required super.id,
-    required super.name,
+    required String id,
+    required String name,
     required this.description,
     required this.basePrice,
     required this.categoryId,
@@ -33,6 +33,8 @@ class Service extends BaseService {
     required this.updatedAt,
     this.deletedAt,
   }) : super(
+          id: id,
+          name: name,
           description: description,
           basePrice: basePrice,
           categoryId: categoryId,
