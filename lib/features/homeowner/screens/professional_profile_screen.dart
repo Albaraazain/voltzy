@@ -16,7 +16,7 @@ class ProfessionalProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(professional.profile.name),
+        title: Text(professional.profile?.name ?? 'Unknown Professional'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -43,9 +43,18 @@ class ProfessionalProfileScreen extends StatelessWidget {
       children: [
         Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 40,
-              child: Icon(Icons.person, size: 40),
+              child: Text(
+                (professional.profile?.name ?? 'Professional')
+                    .substring(0, 2)
+                    .toUpperCase(),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.pink[700],
+                ),
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -53,29 +62,33 @@ class ProfessionalProfileScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    professional.profile.name,
+                    professional.profile?.name ?? 'Unknown Professional',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 4),
-                  ...[
-                    Row(
-                      children: [
-                        Icon(Icons.star, color: Colors.amber[700], size: 20),
-                        const SizedBox(width: 4),
-                        Text(
-                          professional.rating.toStringAsFixed(1),
-                          style: Theme.of(context).textTheme.bodyLarge,
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Text(
-                    '\$${professional.hourlyRate.toStringAsFixed(2)}/hr',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
+                    professional.specialties.isNotEmpty
+                        ? professional.specialties.first
+                        : 'Professional',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on,
+                          size: 16, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Greater Boston Area',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
                         ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -89,6 +102,82 @@ class ProfessionalProfileScreen extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
+        const SizedBox(height: 16),
+
+        // Badges
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.pink[100],
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Licensed Pro',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.pink[700],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.star, size: 16, color: Colors.amber.shade600),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${(professional.rating ?? 0.0).toStringAsFixed(1)} (${professional.reviewCount ?? 0})',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Icon(Icons.work, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 4),
+            Text(
+              '${professional.jobsCompleted ?? 0} jobs completed',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 4),
+            Text(
+              '${(professional.hourlyRate ?? 0.0).toStringAsFixed(2)}/hr',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
