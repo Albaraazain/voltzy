@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
+import '../../../models/base_service_model.dart';
 import '../../../providers/database_provider.dart';
 import '../../../core/services/logger_service.dart';
-import '../../../core/widgets/loading_indicator.dart';
-import '../../../models/base_service_model.dart';
+import '../../../core/widgets/loading_overlay.dart';
 
 class BroadcastRequestMapScreen extends StatefulWidget {
   final BaseService service;
   final double initialLat;
   final double initialLng;
+  final int hours;
+  final double budget;
+  final String description;
 
   const BroadcastRequestMapScreen({
     super.key,
     required this.service,
     required this.initialLat,
     required this.initialLng,
+    required this.hours,
+    required this.budget,
+    required this.description,
   });
 
   @override
@@ -24,11 +30,10 @@ class BroadcastRequestMapScreen extends StatefulWidget {
 }
 
 class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
-  GoogleMapController? _mapController;
-  bool _isLoading = true;
-  int _nearbyProfessionalsCount = 0;
-  double _selectedRadius = 5.0; // Default 5km radius
   late LatLng _selectedLocation;
+  double _selectedRadius = 5.0; // Default 5km radius
+  int _nearbyProfessionalsCount = 0;
+  bool _isLoading = false;
   bool _isRequestingJob = false;
 
   @override
@@ -69,10 +74,10 @@ class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
       await Provider.of<DatabaseProvider>(context, listen: false)
           .createBroadcastJob(
         title: 'Service Request: ${widget.service.name}',
-        description: 'Broadcast request for ${widget.service.name}',
+        description: widget.description,
         serviceId: widget.service.id,
-        hours: 2.0, // Default hours, could be made configurable
-        pricePerHour: widget.service.basePrice,
+        hours: widget.hours.toDouble(),
+        pricePerHour: widget.budget / widget.hours,
         lat: _selectedLocation.latitude,
         lng: _selectedLocation.longitude,
         radiusKm: _selectedRadius,
@@ -100,99 +105,100 @@ class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Request ${widget.service.name}'),
-      ),
-      body: Stack(
-        children: [
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _selectedLocation,
-              zoom: 15,
-            ),
-            onMapCreated: (controller) {
-              _mapController = controller;
-              setState(() => _isLoading = false);
-            },
-            circles: {
-              Circle(
-                circleId: const CircleId('searchRadius'),
-                center: _selectedLocation,
-                radius: _selectedRadius * 1000, // Convert km to meters
-                fillColor: Colors.blue.withOpacity(0.2),
-                strokeColor: Colors.blue,
-                strokeWidth: 1,
+    return LoadingOverlay(
+      isLoading: _isRequestingJob,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Select Area'),
+          elevation: 0,
+        ),
+        body: Stack(
+          children: [
+            GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _selectedLocation,
+                zoom: 14,
               ),
-            },
-            onTap: (location) {
-              setState(() => _selectedLocation = location);
-              _updateNearbyProfessionalsCount();
-            },
-          ),
-          // Bottom Card
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Card(
-              margin: const EdgeInsets.all(16),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_isLoading)
-                      const LoadingIndicator()
-                    else ...[
-                      Text(
-                        'Found $_nearbyProfessionalsCount professionals nearby',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Within ${_selectedRadius.toStringAsFixed(1)} km radius',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 16),
-                      Slider(
-                        value: _selectedRadius,
-                        min: 1.0,
-                        max: 20.0,
-                        divisions: 19,
-                        label: '${_selectedRadius.toStringAsFixed(1)} km',
-                        onChanged: (value) {
-                          setState(() => _selectedRadius = value);
-                          _updateNearbyProfessionalsCount();
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed:
-                              _nearbyProfessionalsCount > 0 && !_isRequestingJob
-                                  ? _requestBroadcastJob
-                                  : null,
-                          child: Text(_isRequestingJob
-                              ? 'Sending Request...'
-                              : 'Request Service'),
-                        ),
-                      ),
-                    ],
-                  ],
+              onCameraMove: (position) {
+                setState(() {
+                  _selectedLocation = position.target;
+                });
+              },
+              onCameraIdle: _updateNearbyProfessionalsCount,
+              circles: {
+                Circle(
+                  circleId: const CircleId('searchArea'),
+                  center: _selectedLocation,
+                  radius: _selectedRadius * 1000, // Convert km to meters
+                  fillColor: Colors.blue.withOpacity(0.2),
+                  strokeColor: Colors.blue,
+                  strokeWidth: 1,
                 ),
+              },
+            ),
+            Positioned(
+              bottom: 16,
+              left: 16,
+              right: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$_nearbyProfessionalsCount professionals found',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Search radius: ${_selectedRadius.toStringAsFixed(1)} km',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          Slider(
+                            value: _selectedRadius,
+                            min: 1,
+                            max: 50,
+                            divisions: 49,
+                            label: '${_selectedRadius.toStringAsFixed(1)} km',
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedRadius = value;
+                              });
+                              _updateNearbyProfessionalsCount();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: _nearbyProfessionalsCount > 0
+                        ? _requestBroadcastJob
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.all(16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      _nearbyProfessionalsCount > 0
+                          ? 'Send Request to $_nearbyProfessionalsCount Professionals'
+                          : 'No Professionals Found',
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _mapController?.dispose();
-    super.dispose();
   }
 }
