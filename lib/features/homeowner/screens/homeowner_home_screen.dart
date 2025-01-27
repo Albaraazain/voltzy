@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/database_provider.dart';
 import '../../common/widgets/loading_indicator.dart';
 import '../models/service_category_card.dart';
-import 'category_details_screen.dart';
+import 'category_services_screen.dart';
 import '../../../providers/bottom_navigation_provider.dart';
 import '../../../providers/auth_provider.dart';
 
@@ -42,7 +42,7 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
           minPrice: 89.99,
           maxPrice: 1999.99,
           size: CardSize.medium,
-          accentColor: _getCategoryColor(category.name),
+          accentColor: _getCategoryMaterialColor(category.name),
         );
       }).toList();
 
@@ -58,19 +58,21 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
     }
   }
 
-  MaterialColor _getCategoryColor(String categoryName) {
-    final name = categoryName.toLowerCase();
-    if (name.contains('electrical')) return Colors.pink;
-    if (name.contains('plumbing')) return Colors.amber;
-    if (name.contains('cleaning')) return Colors.green;
-    if (name.contains('hvac')) return Colors.blue;
-    if (name.contains('painting')) return Colors.deepOrange;
-    if (name.contains('carpentry')) return Colors.brown;
-    if (name.contains('smart')) return Colors.indigo;
-    if (name.contains('landscaping')) return Colors.lightGreen;
-    if (name.contains('appliance')) return Colors.purple;
-    if (name.contains('security')) return Colors.red;
-    return Colors.grey;
+  MaterialColor _getCategoryMaterialColor(String categoryName) {
+    switch (categoryName.toLowerCase()) {
+      case 'cleaning services':
+        return Colors.blue;
+      case 'maintenance services':
+        return Colors.orange;
+      case 'installation services':
+        return Colors.green;
+      case 'repair services':
+        return Colors.red;
+      case 'landscaping services':
+        return Colors.teal;
+      default:
+        return Colors.amber;
+    }
   }
 
   Widget _getCategoryIcon(String categoryName) {
@@ -389,19 +391,11 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
       crossAxisSpacing: 16,
       childAspectRatio: 0.85,
       children: _categories.map((category) {
-        final color = _getCategoryColor(category.name);
+        final color = _getCategoryMaterialColor(category.name);
         final icon = _getCategoryIcon(category.name);
         return GestureDetector(
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => CategoryDetailsScreen(
-                  categoryId: category.id,
-                  categoryName: category.name.replaceAll(' Services', ''),
-                ),
-              ),
-            );
+            _navigateToCategory(category);
           },
           child: _buildServiceCard(
             category.name.replaceAll(' Services', ''),
@@ -516,6 +510,19 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
   Widget _buildRepairIcon() {
     return CustomPaint(
       painter: RepairPainter(),
+    );
+  }
+
+  void _navigateToCategory(ServiceCategoryCard category) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CategoryServicesScreen(
+          categoryName: category.name,
+          categoryColor: _getCategoryMaterialColor(category.name),
+          categoryId: category.id,
+        ),
+      ),
     );
   }
 }
