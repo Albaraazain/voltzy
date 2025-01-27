@@ -17,7 +17,7 @@ class ProfessionalMainScreen extends StatefulWidget {
 }
 
 class _ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
-  int _selectedIndex = 0;
+  final int _selectedIndex = 0;
 
   final List<Widget> _screens = [
     const ProfessionalHomeScreen(),
@@ -263,57 +263,6 @@ class _ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, int index) {
-    final isSelected = _selectedIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
-      child: Icon(
-        icon,
-        size: 24,
-        color: isSelected ? Colors.pink.shade500 : Colors.grey.shade400,
-      ),
-    );
-  }
-
-  Widget _buildProfileNavItem(int index) {
-    final isSelected = _selectedIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedIndex = index),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.pink.shade500 : Colors.pink.shade100,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                'ME',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : Colors.pink.shade700,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            width: 4,
-            height: 4,
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.pink.shade500 : Colors.transparent,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
