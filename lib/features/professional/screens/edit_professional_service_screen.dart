@@ -23,7 +23,13 @@ class _EditProfessionalServiceScreenState
     extends State<EditProfessionalServiceScreen> {
   late TextEditingController _priceController;
   late TextEditingController _durationController;
+  late TextEditingController _emergencyFeeController;
+  late List<String> _serviceTags;
+  late List<String> _requirements;
+  late Map<String, dynamic> _availabilitySchedule;
+  late Map<String, dynamic> _serviceArea;
   bool _isActive = true;
+  bool _emergencyService = false;
   bool _isLoading = false;
 
   @override
@@ -37,13 +43,27 @@ class _EditProfessionalServiceScreenState
       text: widget.service.customDuration?.toString() ??
           widget.service.baseService.durationHours.toString(),
     );
+    _emergencyFeeController = TextEditingController(
+      text: widget.service.emergencyFee?.toString() ?? '',
+    );
+    _serviceTags = List.from(widget.service.serviceTags);
+    _requirements = List.from(widget.service.requirements);
+    _availabilitySchedule = Map.from(widget.service.availabilitySchedule ??
+        {
+          'weekdays': {'start': '08:00', 'end': '18:00'},
+          'weekend': {'start': '09:00', 'end': '17:00'}
+        });
+    _serviceArea = Map.from(widget.service.serviceArea ??
+        {'radius': 25, 'center': 'Boston', 'unit': 'miles'});
     _isActive = widget.service.isActive;
+    _emergencyService = widget.service.emergencyService;
   }
 
   @override
   void dispose() {
     _priceController.dispose();
     _durationController.dispose();
+    _emergencyFeeController.dispose();
     super.dispose();
   }
 
@@ -60,6 +80,7 @@ class _EditProfessionalServiceScreenState
 
       final customPrice = double.tryParse(_priceController.text);
       final customDuration = double.tryParse(_durationController.text);
+      final emergencyFee = double.tryParse(_emergencyFeeController.text);
 
       await serviceRepo.updateProfessionalService(
         professionalId,
@@ -67,6 +88,12 @@ class _EditProfessionalServiceScreenState
         customPrice: customPrice,
         customDuration: customDuration,
         isActive: _isActive,
+        availabilitySchedule: _availabilitySchedule,
+        serviceArea: _serviceArea,
+        serviceTags: _serviceTags,
+        emergencyService: _emergencyService,
+        emergencyFee: emergencyFee,
+        requirements: _requirements,
       );
 
       if (!mounted) return;
@@ -115,6 +142,75 @@ class _EditProfessionalServiceScreenState
           child,
         ],
       ),
+    );
+  }
+
+  Widget _buildTagInput() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        ..._serviceTags.map((tag) => Chip(
+              label: Text(tag),
+              onDeleted: () {
+                setState(() {
+                  _serviceTags.remove(tag);
+                });
+              },
+            )),
+        ActionChip(
+          label: const Text('Add Tag'),
+          onPressed: () async {
+            final result = await showDialog<String>(
+              context: context,
+              builder: (context) => _AddTagDialog(),
+            );
+            if (result != null && result.isNotEmpty) {
+              setState(() {
+                _serviceTags.add(result);
+              });
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRequirementsList() {
+    return Column(
+      children: [
+        ..._requirements.asMap().entries.map((entry) {
+          final index = entry.key;
+          final requirement = entry.value;
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(requirement),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () {
+                setState(() {
+                  _requirements.removeAt(index);
+                });
+              },
+            ),
+          );
+        }),
+        TextButton.icon(
+          onPressed: () async {
+            final result = await showDialog<String>(
+              context: context,
+              builder: (context) => _AddRequirementDialog(),
+            );
+            if (result != null && result.isNotEmpty) {
+              setState(() {
+                _requirements.add(result);
+              });
+            }
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Add Requirement'),
+        ),
+      ],
     );
   }
 
@@ -252,41 +348,132 @@ class _EditProfessionalServiceScreenState
                   ),
                 ),
 
-                // Service Status
+                // Service Tags
                 _buildInfoCard(
-                  title: 'Service Status',
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  title: 'Service Tags',
+                  child: _buildTagInput(),
+                ),
+
+                // Service Requirements
+                _buildInfoCard(
+                  title: 'Service Requirements',
+                  child: _buildRequirementsList(),
+                ),
+
+                // Service Area
+                _buildInfoCard(
+                  title: 'Service Area',
+                  child: Column(
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      TextFormField(
+                        initialValue: _serviceArea['center'] as String,
+                        onChanged: (value) {
+                          setState(() {
+                            _serviceArea['center'] = value;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Service Center',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
                         children: [
-                          Text(
-                            _isActive ? 'Active' : 'Inactive',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
+                          Expanded(
+                            child: TextFormField(
+                              initialValue:
+                                  (_serviceArea['radius'] as num).toString(),
+                              keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                setState(() {
+                                  _serviceArea['radius'] =
+                                      int.tryParse(value) ?? 25;
+                                });
+                              },
+                              decoration: const InputDecoration(
+                                labelText: 'Radius',
+                                border: OutlineInputBorder(),
+                              ),
                             ),
                           ),
-                          Text(
-                            'Toggle to enable/disable this service',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _serviceArea['unit'] as String,
+                              items: ['miles', 'kilometers']
+                                  .map((unit) => DropdownMenuItem(
+                                        value: unit,
+                                        child: Text(unit),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() {
+                                    _serviceArea['unit'] = value;
+                                  });
+                                }
+                              },
+                              decoration: const InputDecoration(
+                                labelText: 'Unit',
+                                border: OutlineInputBorder(),
+                              ),
                             ),
                           ),
                         ],
-                      ),
-                      Switch(
-                        value: _isActive,
-                        onChanged: (value) => setState(() => _isActive = value),
-                        activeColor: Colors.pink[500],
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                // Emergency Service
+                _buildInfoCard(
+                  title: 'Emergency Service',
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Offer Emergency Service'),
+                        value: _emergencyService,
+                        onChanged: (value) {
+                          setState(() {
+                            _emergencyService = value;
+                          });
+                        },
+                      ),
+                      if (_emergencyService)
+                        TextFormField(
+                          controller: _emergencyFeeController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d{0,2}')),
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Emergency Fee (per hour)',
+                            prefixText: '\$ ',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                // Active Status
+                _buildInfoCard(
+                  title: 'Service Status',
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Service Active'),
+                    value: _isActive,
+                    onChanged: (value) {
+                      setState(() {
+                        _isActive = value;
+                      });
+                    },
+                  ),
+                ),
 
                 // Save Button
                 SizedBox(
@@ -300,19 +487,9 @@ class _EditProfessionalServiceScreenState
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      elevation: 0,
                     ),
                     child: _isLoading
-                        ? SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.pink[100]!,
-                              ),
-                            ),
-                          )
+                        ? const CircularProgressIndicator(color: Colors.white)
                         : const Text(
                             'Save Changes',
                             style: TextStyle(
@@ -322,11 +499,90 @@ class _EditProfessionalServiceScreenState
                           ),
                   ),
                 ),
+                const SizedBox(height: 32),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AddTagDialog extends StatefulWidget {
+  @override
+  _AddTagDialogState createState() => _AddTagDialogState();
+}
+
+class _AddTagDialogState extends State<_AddTagDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Tag'),
+      content: TextField(
+        controller: _controller,
+        decoration: const InputDecoration(
+          hintText: 'Enter tag name',
+        ),
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: const Text('Add'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AddRequirementDialog extends StatefulWidget {
+  @override
+  _AddRequirementDialogState createState() => _AddRequirementDialogState();
+}
+
+class _AddRequirementDialogState extends State<_AddRequirementDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Requirement'),
+      content: TextField(
+        controller: _controller,
+        decoration: const InputDecoration(
+          hintText: 'Enter requirement',
+        ),
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: const Text('Add'),
+        ),
+      ],
     );
   }
 }
