@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/service.dart';
+import '../../../models/base_service_model.dart';
 
 class BroadcastJobScreen extends StatefulWidget {
-  final CategoryService service;
+  final BaseService service;
 
   const BroadcastJobScreen({
     super.key,
