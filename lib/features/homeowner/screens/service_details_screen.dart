@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/service.dart';
+import '../../../models/base_service_model.dart';
 
 class InfoCard extends StatelessWidget {
   final String title;
@@ -45,7 +45,7 @@ class InfoCard extends StatelessWidget {
 }
 
 class ServiceDetailsScreen extends StatelessWidget {
-  final CategoryService service;
+  final BaseService service;
 
   const ServiceDetailsScreen({
     super.key,
