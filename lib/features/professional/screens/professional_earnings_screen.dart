@@ -9,13 +9,13 @@ class TransactionCard extends StatelessWidget {
   final String type;
 
   const TransactionCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.amount,
     required this.time,
     required this.status,
     required this.type,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -102,9 +102,16 @@ class TransactionCard extends StatelessWidget {
   }
 }
 
-class ProfessionalEarningsScreen extends StatelessWidget {
-  const ProfessionalEarningsScreen({Key? key}) : super(key: key);
+class ProfessionalEarningsScreen extends StatefulWidget {
+  const ProfessionalEarningsScreen({super.key});
 
+  @override
+  State<ProfessionalEarningsScreen> createState() =>
+      _ProfessionalEarningsScreenState();
+}
+
+class _ProfessionalEarningsScreenState
+    extends State<ProfessionalEarningsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -528,6 +535,66 @@ class ProfessionalEarningsScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _EarningsCard extends StatelessWidget {
+  final String title;
+  final String amount;
+  final String period;
+  final IconData icon;
+  final Color backgroundColor;
+
+  const _EarningsCard({
+    super.key,
+    required this.title,
+    required this.amount,
+    required this.period,
+    required this.icon,
+    required this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            amount,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            period,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }
