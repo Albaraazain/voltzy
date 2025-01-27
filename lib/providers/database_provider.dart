@@ -9,7 +9,6 @@ import '../models/homeowner_model.dart';
 import '../models/job_model.dart';
 import '../models/base_service_model.dart';
 import '../models/review_model.dart';
-import '../models/service_model.dart';
 import '../models/payment_info_model.dart';
 import '../repositories/professional_repository.dart';
 import '../repositories/homeowner_repository.dart';
@@ -19,8 +18,6 @@ import '../models/category_model.dart';
 import '../core/utils/api_response.dart';
 import '../models/service_category_model.dart';
 import '../core/config/supabase_config.dart';
-
-// Import the USE_DEVELOPMENT_ENV constant
 
 class DatabaseProvider with ChangeNotifier {
   final AuthProvider _authProvider;
@@ -36,8 +33,6 @@ class DatabaseProvider with ChangeNotifier {
   Homeowner? _currentHomeowner;
   bool _isInitialized = false;
   String? _error;
-  Job? _currentJob;
-  List<Category>? _categories;
 
   DatabaseProvider(this._authProvider) {
     _client = SupabaseConfig.client;
@@ -909,7 +904,6 @@ class DatabaseProvider with ChangeNotifier {
     LoggerService.debug(
         'Found professional: ${professional.profile?.name ?? 'Unknown'} with hourly rate: ${professional.hourlyRate}');
 
-    final now = DateTime.now().toIso8601String();
     return _client
         .from('jobs')
         .stream(primaryKey: ['id'])
@@ -1198,7 +1192,6 @@ class DatabaseProvider with ChangeNotifier {
   Future<List<Category>> loadServiceCategories() async {
     try {
       final categories = await getServiceCategories();
-      _categories = categories;
       notifyListeners();
       return categories;
     } catch (e) {
