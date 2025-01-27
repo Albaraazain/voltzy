@@ -118,6 +118,12 @@ class ServiceRepository {
     required String serviceId,
     double? customPrice,
     double? customDuration,
+    Map<String, dynamic>? availabilitySchedule,
+    Map<String, dynamic>? serviceArea,
+    List<String>? serviceTags,
+    bool? emergencyService,
+    double? emergencyFee,
+    List<String>? requirements,
   }) async {
     try {
       // First get the base service
@@ -134,6 +140,23 @@ class ServiceRepository {
             'custom_duration': customDuration,
             'is_active': true,
             'available_today': true,
+            'availability_schedule': availabilitySchedule ??
+                {
+                  'weekdays': {'start': '08:00', 'end': '18:00'},
+                  'weekend': {'start': '09:00', 'end': '17:00'}
+                },
+            'service_area': serviceArea ??
+                {'radius': 25, 'center': 'Boston', 'unit': 'miles'},
+            'service_tags': serviceTags ?? [],
+            'emergency_service': emergencyService ?? false,
+            'emergency_fee': emergencyFee,
+            'requirements': requirements ??
+                [
+                  'Valid professional license',
+                  'Own tools and equipment',
+                  'Transportation',
+                  'Insurance coverage'
+                ],
           })
           .select('*, service:services (*)')
           .single();
@@ -227,12 +250,27 @@ class ServiceRepository {
     double? customPrice,
     double? customDuration,
     bool? isActive,
+    bool? availableToday,
+    Map<String, dynamic>? availabilitySchedule,
+    Map<String, dynamic>? serviceArea,
+    List<String>? serviceTags,
+    bool? emergencyService,
+    double? emergencyFee,
+    List<String>? requirements,
   }) async {
     try {
       final updates = {
         if (customPrice != null) 'custom_price': customPrice,
         if (customDuration != null) 'custom_duration': customDuration,
         if (isActive != null) 'is_active': isActive,
+        if (availableToday != null) 'available_today': availableToday,
+        if (availabilitySchedule != null)
+          'availability_schedule': availabilitySchedule,
+        if (serviceArea != null) 'service_area': serviceArea,
+        if (serviceTags != null) 'service_tags': serviceTags,
+        if (emergencyService != null) 'emergency_service': emergencyService,
+        if (emergencyFee != null) 'emergency_fee': emergencyFee,
+        if (requirements != null) 'requirements': requirements,
       };
 
       if (updates.isEmpty) return;
