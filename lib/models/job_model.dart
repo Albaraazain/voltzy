@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'base_service_model.dart';
 import 'profile_model.dart';
+import '../core/services/logger_service.dart';
 
 @immutable
 class Job {
@@ -66,6 +67,7 @@ class Job {
   final double? radiusKm;
   final BaseService service;
   final String? notes;
+  final DateTime? maintenance_due_date;
 
   const Job({
     required this.id,
@@ -91,56 +93,77 @@ class Job {
     this.radiusKm,
     required this.service,
     this.notes,
+    this.maintenance_due_date,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
-    final homeownerData = json['homeowner'] as Map<String, dynamic>?;
-    final professionalData = json['professional'] as Map<String, dynamic>?;
+    try {
+      LoggerService.debug('Starting Job.fromJson conversion');
+      LoggerService.debug('Processing homeowner data');
+      final homeownerData = json['homeowner'] as Map<String, dynamic>?;
+      LoggerService.debug('Processing professional data');
+      final professionalData = json['professional'] as Map<String, dynamic>?;
+      LoggerService.debug('Processing service data');
+      final serviceData = json['service'] as Map<String, dynamic>?;
+      if (serviceData == null) {
+        LoggerService.error('Service data is null for job ${json['id']}');
+        throw Exception('Service data is required but was null');
+      }
 
-    // Create homeowner with profile if data exists
-    Homeowner? homeowner;
-    if (homeownerData != null && homeownerData['profile'] != null) {
-      final profile =
-          Profile.fromJson(homeownerData['profile'] as Map<String, dynamic>);
-      homeowner = Homeowner.fromJson(homeownerData, profile: profile);
+      // Create homeowner with profile if data exists
+      Homeowner? homeowner;
+      if (homeownerData != null && homeownerData['profile'] != null) {
+        LoggerService.debug('Creating homeowner profile');
+        final profile =
+            Profile.fromJson(homeownerData['profile'] as Map<String, dynamic>);
+        homeowner = Homeowner.fromJson(homeownerData, profile: profile);
+      }
+
+      LoggerService.debug('Creating Job object');
+      return Job(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        description: json['description'] as String,
+        price: (json['price'] as num).toDouble(),
+        status: json['status'] as String,
+        date: DateTime.parse(json['date'] as String),
+        createdAt: DateTime.parse(json['created_at'] as String),
+        updatedAt: DateTime.parse(json['updated_at'] as String),
+        homeownerId: json['homeowner_id'] as String,
+        professionalId: json['professional_id'] as String?,
+        verificationStatus: json['verification_status'] as String,
+        paymentStatus: json['payment_status'] as String,
+        requestType: json['request_type'] as String,
+        paymentDetails: json['payment_details'] as Map<String, dynamic>?,
+        verificationDetails:
+            json['verification_details'] as Map<String, dynamic>?,
+        expiresAt: json['expires_at'] != null
+            ? DateTime.parse(json['expires_at'] as String)
+            : null,
+        homeowner: homeowner,
+        professional: professionalData != null
+            ? Professional.fromJson(professionalData)
+            : null,
+        locationLat: json['location_lat'] != null
+            ? (json['location_lat'] as num).toDouble()
+            : null,
+        locationLng: json['location_lng'] != null
+            ? (json['location_lng'] as num).toDouble()
+            : null,
+        radiusKm: json['radius_km'] != null
+            ? (json['radius_km'] as num).toDouble()
+            : null,
+        service: BaseService.fromJson(serviceData),
+        notes: json['notes'] as String?,
+        maintenance_due_date: json['maintenance_due_date'] != null
+            ? DateTime.parse(json['maintenance_due_date'] as String)
+            : null,
+      );
+    } catch (e, stackTrace) {
+      LoggerService.error('Error in Job.fromJson', e, stackTrace);
+      LoggerService.debug('JSON data: $json');
+      rethrow;
     }
-
-    return Job(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
-      price: (json['price'] as num).toDouble(),
-      status: json['status'] as String,
-      date: DateTime.parse(json['date'] as String),
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
-      homeownerId: json['homeowner_id'] as String,
-      professionalId: json['professional_id'] as String?,
-      verificationStatus: json['verification_status'] as String,
-      paymentStatus: json['payment_status'] as String,
-      requestType: json['request_type'] as String,
-      paymentDetails: json['payment_details'] as Map<String, dynamic>?,
-      verificationDetails:
-          json['verification_details'] as Map<String, dynamic>?,
-      expiresAt: json['expires_at'] != null
-          ? DateTime.parse(json['expires_at'] as String)
-          : null,
-      homeowner: homeowner,
-      professional: professionalData != null
-          ? Professional.fromJson(professionalData)
-          : null,
-      locationLat: json['location_lat'] != null
-          ? (json['location_lat'] as num).toDouble()
-          : null,
-      locationLng: json['location_lng'] != null
-          ? (json['location_lng'] as num).toDouble()
-          : null,
-      radiusKm: json['radius_km'] != null
-          ? (json['radius_km'] as num).toDouble()
-          : null,
-      service: BaseService.fromJson(json['service'] as Map<String, dynamic>),
-      notes: json['notes'] as String?,
-    );
   }
 
   Map<String, dynamic> toJson() {
@@ -168,6 +191,7 @@ class Job {
       'radius_km': radiusKm,
       'service': service.toJson(),
       'notes': notes,
+      'maintenance_due_date': maintenance_due_date?.toIso8601String(),
     };
   }
 
@@ -203,6 +227,7 @@ class Job {
     double? radiusKm,
     BaseService? service,
     String? notes,
+    DateTime? maintenance_due_date,
   }) {
     return Job(
       id: id ?? this.id,
@@ -228,6 +253,7 @@ class Job {
       radiusKm: radiusKm ?? this.radiusKm,
       service: service ?? this.service,
       notes: notes ?? this.notes,
+      maintenance_due_date: maintenance_due_date ?? this.maintenance_due_date,
     );
   }
 
