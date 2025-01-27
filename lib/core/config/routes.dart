@@ -19,10 +19,10 @@ import '../../models/professional_model.dart';
 import '../../models/service_model.dart' as pro;
 import '../../features/homeowner/models/service.dart' as home;
 import '../../features/homeowner/screens/homeowner_profile_screen.dart';
-import '../../features/professional/screens/professional_services_screen.dart';
 import '../../features/professional/screens/professional_job_details_screen.dart';
 import '../../features/professional/screens/professional_earnings_screen.dart';
 import '../../features/professional/screens/professional_service_details_screen.dart';
+import '../../features/professional/screens/professional_services_management_screen.dart';
 
 class AppRoutes {
   // Route names
@@ -90,7 +90,7 @@ class AppRoutes {
       },
       professionalServices: (context) {
         LoggerService.debug('🔄 Navigating to Professional Services');
-        return const ProfessionalServicesScreen();
+        return const ProfessionalServicesManagementScreen();
       },
       professionalEarnings: (context) {
         LoggerService.debug('🔄 Navigating to Professional Earnings');
