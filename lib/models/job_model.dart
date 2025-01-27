@@ -2,7 +2,7 @@ import 'homeowner_model.dart';
 import 'professional_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
-import 'service_model.dart';
+import 'base_service_model.dart';
 import 'profile_model.dart';
 
 @immutable
@@ -64,7 +64,7 @@ class Job {
   final double? locationLat;
   final double? locationLng;
   final double? radiusKm;
-  final Service service;
+  final BaseService service;
   final String? notes;
 
   const Job({
@@ -92,6 +92,56 @@ class Job {
     required this.service,
     this.notes,
   });
+
+  factory Job.fromJson(Map<String, dynamic> json) {
+    final homeownerData = json['homeowner'] as Map<String, dynamic>?;
+    final professionalData = json['professional'] as Map<String, dynamic>?;
+
+    // Create homeowner with profile if data exists
+    Homeowner? homeowner;
+    if (homeownerData != null && homeownerData['profile'] != null) {
+      final profile =
+          Profile.fromJson(homeownerData['profile'] as Map<String, dynamic>);
+      homeowner = Homeowner.fromJson(homeownerData, profile: profile);
+    }
+
+    return Job(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String,
+      price: (json['price'] as num).toDouble(),
+      status: json['status'] as String,
+      date: DateTime.parse(json['date'] as String),
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+      homeownerId: json['homeowner_id'] as String,
+      professionalId: json['professional_id'] as String?,
+      verificationStatus: json['verification_status'] as String,
+      paymentStatus: json['payment_status'] as String,
+      requestType: json['request_type'] as String,
+      paymentDetails: json['payment_details'] as Map<String, dynamic>?,
+      verificationDetails:
+          json['verification_details'] as Map<String, dynamic>?,
+      expiresAt: json['expires_at'] != null
+          ? DateTime.parse(json['expires_at'] as String)
+          : null,
+      homeowner: homeowner,
+      professional: professionalData != null
+          ? Professional.fromJson(professionalData)
+          : null,
+      locationLat: json['location_lat'] != null
+          ? (json['location_lat'] as num).toDouble()
+          : null,
+      locationLng: json['location_lng'] != null
+          ? (json['location_lng'] as num).toDouble()
+          : null,
+      radiusKm: json['radius_km'] != null
+          ? (json['radius_km'] as num).toDouble()
+          : null,
+      service: BaseService.fromJson(json['service'] as Map<String, dynamic>),
+      notes: json['notes'] as String?,
+    );
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -121,56 +171,13 @@ class Job {
     };
   }
 
-  factory Job.fromJson(Map<String, dynamic> json) {
-    final homeownerData = json['homeowner'] as Map<String, dynamic>?;
-    final professionalData = json['professional'] as Map<String, dynamic>?;
-
-    // Get profiles from homeowner and professional data
-    final homeownerProfile = homeownerData != null
-        ? Profile.fromJson(homeownerData['profile'] as Map<String, dynamic>)
-        : null;
-
-    return Job(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
-      price: (json['price'] as num).toDouble(),
-      status: json['status'] as String,
-      date: DateTime.parse(json['date'] as String),
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
-      homeownerId: json['homeowner_id'] as String,
-      professionalId: json['professional_id'] as String?,
-      verificationStatus:
-          json['verification_status'] as String? ?? VERIFICATION_STATUS_PENDING,
-      paymentStatus:
-          json['payment_status'] as String? ?? PAYMENT_STATUS_PENDING,
-      requestType: json['request_type'] as String? ?? REQUEST_TYPE_DIRECT,
-      paymentDetails: json['payment_details'] as Map<String, dynamic>?,
-      verificationDetails:
-          json['verification_details'] as Map<String, dynamic>?,
-      expiresAt: json['expires_at'] != null
-          ? DateTime.parse(json['expires_at'] as String)
-          : null,
-      homeowner: homeownerData != null
-          ? Homeowner.fromJson(homeownerData, profile: homeownerProfile!)
-          : null,
-      professional: professionalData != null
-          ? Professional.fromJson(professionalData)
-          : null,
-      locationLat: json['location_lat'] != null
-          ? (json['location_lat'] as num).toDouble()
-          : null,
-      locationLng: json['location_lng'] != null
-          ? (json['location_lng'] as num).toDouble()
-          : null,
-      radiusKm: json['radius_km'] != null
-          ? (json['radius_km'] as num).toDouble()
-          : null,
-      service: Service.fromJson(json['service'] as Map<String, dynamic>),
-      notes: json['notes'] as String?,
-    );
+  bool canTransitionTo(String newStatus) {
+    final validTransitions = VALID_STATUS_TRANSITIONS[status];
+    return validTransitions?.contains(newStatus) ?? false;
   }
+
+  String get formattedDate => DateFormat('MMM d, y').format(date);
+  String get formattedTime => DateFormat('h:mm a').format(date);
 
   Job copyWith({
     String? id,
@@ -194,7 +201,7 @@ class Job {
     double? locationLat,
     double? locationLng,
     double? radiusKm,
-    Service? service,
+    BaseService? service,
     String? notes,
   }) {
     return Job(
@@ -272,8 +279,6 @@ class Job {
   }
 
   // Computed getters
-  String get formattedDate => DateFormat('MMM d, y').format(date);
-  String get formattedTime => DateFormat('h:mm a').format(date);
   bool get isPending => status.toLowerCase() == 'pending';
   bool get isAccepted => status.toLowerCase() == 'accepted';
   bool get isInProgress => status.toLowerCase() == 'in_progress';
