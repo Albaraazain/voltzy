@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../models/professional_model.dart';
-import 'rating_bar.dart';
 
 class ProfessionalCard extends StatelessWidget {
   final Professional professional;

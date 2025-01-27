@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../models/service_model.dart';
 
 @immutable
 class CategoryService {

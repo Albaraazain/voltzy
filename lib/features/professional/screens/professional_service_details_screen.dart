@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/database_provider.dart';
-import '../../../repositories/professional_repository.dart';
 import '../../../repositories/service_repository.dart';
 import '../../../models/professional_service_model.dart';
 import '../../../core/services/logger_service.dart';
@@ -12,10 +11,10 @@ class InfoCard extends StatelessWidget {
   final Widget child;
 
   const InfoCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.child,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -54,9 +53,9 @@ class ProfessionalServiceDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> serviceData;
 
   const ProfessionalServiceDetailsScreen({
-    Key? key,
+    super.key,
     required this.serviceData,
-  }) : super(key: key);
+  });
 
   @override
   State<ProfessionalServiceDetailsScreen> createState() =>

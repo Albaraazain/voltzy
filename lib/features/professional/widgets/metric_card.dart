@@ -8,13 +8,13 @@ class MetricCard extends StatelessWidget {
   final Color backgroundColor;
 
   const MetricCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     this.trend,
     required this.icon,
     required this.backgroundColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

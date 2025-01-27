@@ -8,21 +8,16 @@ import '../models/professional_model.dart';
 import '../models/homeowner_model.dart';
 import '../models/job_model.dart';
 import '../models/base_service_model.dart';
-import '../models/professional_service_model.dart';
 import '../models/review_model.dart';
 import '../models/service_model.dart';
-import '../models/working_hours_model.dart';
 import '../models/payment_info_model.dart';
-import '../models/notification_preferences_model.dart';
 import '../repositories/professional_repository.dart';
 import '../repositories/homeowner_repository.dart';
 import '../repositories/service_repository.dart';
 import 'auth_provider.dart';
-import '../models/schedule_slot_model.dart' as schedule;
 import '../models/category_model.dart';
 import '../core/utils/api_response.dart';
 import '../models/service_category_model.dart';
-import '../features/homeowner/models/service.dart';
 import '../core/config/supabase_config.dart';
 
 // Import the USE_DEVELOPMENT_ENV constant
@@ -494,46 +489,60 @@ class DatabaseProvider with ChangeNotifier {
       if (professional?.name != null) data['name'] = professional!.name;
       if (professional?.email != null) data['email'] = professional!.email;
       if (professional?.phone != null) data['phone'] = professional!.phone;
-      if (professional?.profileImage != null)
+      if (professional?.profileImage != null) {
         data['profile_image'] = professional!.profileImage;
+      }
       if (professional?.bio != null) data['bio'] = professional!.bio;
-      if (professional?.hourlyRate != null)
+      if (professional?.hourlyRate != null) {
         data['hourly_rate'] = professional!.hourlyRate;
-      if (professional?.isVerified != null)
+      }
+      if (professional?.isVerified != null) {
         data['is_verified'] = professional!.isVerified;
-      if (professional?.location != null)
+      }
+      if (professional?.location != null) {
         data['location'] = professional!.location;
+      }
       if (professional?.paymentInfo != null) {
         final paymentInfo = professional!.paymentInfo;
         if (paymentInfo is Map<String, dynamic>) {
           data['payment_info'] = paymentInfo;
         }
       }
-      if (professional?.createdAt != null)
+      if (professional?.createdAt != null) {
         data['created_at'] = professional!.createdAt;
-      if (professional?.updatedAt != null)
+      }
+      if (professional?.updatedAt != null) {
         data['updated_at'] = professional!.updatedAt;
+      }
       if (professional?.rating != null) data['rating'] = professional!.rating;
-      if (professional?.reviewCount != null)
+      if (professional?.reviewCount != null) {
         data['review_count'] = professional!.reviewCount;
-      if (professional?.specialties != null)
+      }
+      if (professional?.specialties != null) {
         data['specialties'] = professional!.specialties;
-      if (professional?.isAvailable != null)
+      }
+      if (professional?.isAvailable != null) {
         data['is_available'] = professional!.isAvailable;
-      if (professional?.licenseNumber != null)
+      }
+      if (professional?.licenseNumber != null) {
         data['license_number'] = professional!.licenseNumber;
-      if (professional?.yearsOfExperience != null)
+      }
+      if (professional?.yearsOfExperience != null) {
         data['years_of_experience'] = professional!.yearsOfExperience;
+      }
       if (professional?.notificationPreferences != null) {
         data['notification_preferences'] =
             professional!.notificationPreferences;
       }
-      if (professional?.locationLat != null)
+      if (professional?.locationLat != null) {
         data['location_lat'] = professional!.locationLat;
-      if (professional?.locationLng != null)
+      }
+      if (professional?.locationLng != null) {
         data['location_lng'] = professional!.locationLng;
-      if (professional?.jobsCompleted != null)
+      }
+      if (professional?.jobsCompleted != null) {
         data['jobs_completed'] = professional!.jobsCompleted;
+      }
 
       await _client.from('professionals').update(data).eq('id', professionalId);
       await loadProfessionals();

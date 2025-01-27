@@ -10,10 +10,10 @@ class ServiceCard extends StatelessWidget {
   final VoidCallback onToggle;
 
   const ServiceCard({
-    Key? key,
+    super.key,
     required this.service,
     required this.onToggle,
-  }) : super(key: key);
+  });
 
   String _formatDuration(double? hours) {
     if (hours == null) return 'Varies';
@@ -148,7 +148,7 @@ class ServiceCard extends StatelessWidget {
 }
 
 class ProfessionalServicesManagementScreen extends StatelessWidget {
-  const ProfessionalServicesManagementScreen({Key? key}) : super(key: key);
+  const ProfessionalServicesManagementScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

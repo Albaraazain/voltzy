@@ -4,12 +4,6 @@ import 'package:provider/provider.dart';
 import '../models/base_service_model.dart';
 import '../models/category_model.dart';
 import '../providers/database_provider.dart';
-import '../core/widgets/loading_indicator.dart';
-import '../features/homeowner/models/service.dart';
-import '../core/services/logger_service.dart';
-import '../widgets/error_view.dart';
-import '../features/homeowner/screens/broadcast_job_screen.dart';
-import '../models/service_category_model.dart';
 
 class CategoryServicesScreen extends StatefulWidget {
   final Category category;
@@ -105,10 +99,10 @@ class ServiceCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const ServiceCard({
-    Key? key,
+    super.key,
     required this.service,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

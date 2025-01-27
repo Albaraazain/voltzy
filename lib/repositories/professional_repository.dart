@@ -3,9 +3,6 @@ import 'package:geolocator/geolocator.dart';
 
 import '../models/professional_model.dart';
 import '../core/services/logger_service.dart';
-import '../models/base_service_model.dart';
-import '../models/professional_service_model.dart';
-import '../models/profile_model.dart' as profile_models;
 
 class ProfessionalRepository {
   final SupabaseClient _client;
@@ -92,9 +89,7 @@ class ProfessionalRepository {
         )
       ''').eq('professional_services.service_id', serviceId);
 
-      return response
-          .map((json) => Professional.fromJson(json as Map<String, dynamic>))
-          .toList();
+      return response.map((json) => Professional.fromJson(json)).toList();
     } catch (e, stackTrace) {
       LoggerService.error(
           'Failed to get professionals by service', e, stackTrace);
@@ -120,7 +115,9 @@ class ProfessionalRepository {
 
       return professionals.where((professional) {
         if (professional.locationLat == null ||
-            professional.locationLng == null) return false;
+            professional.locationLng == null) {
+          return false;
+        }
 
         final distance = Geolocator.distanceBetween(
             userLocation.latitude,
@@ -205,8 +202,6 @@ class ProfessionalRepository {
           service:services (*)
         )
       ''').eq('id', userId).single();
-
-      if (response == null) return null;
       return Professional.fromJson(response);
     } catch (e, stackTrace) {
       LoggerService.error('Failed to get current professional', e, stackTrace);

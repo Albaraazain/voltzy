@@ -10,9 +10,9 @@ class EditProfessionalServiceScreen extends StatefulWidget {
   final ProfessionalService service;
 
   const EditProfessionalServiceScreen({
-    Key? key,
+    super.key,
     required this.service,
-  }) : super(key: key);
+  });
 
   @override
   State<EditProfessionalServiceScreen> createState() =>

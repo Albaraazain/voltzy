@@ -1,9 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/colors.dart';
-import '../../../core/constants/text_styles.dart';
-import '../../../core/utils/icon_mapper.dart';
-import '../../../models/category_model.dart';
-import '../../../models/base_service_model.dart';
 import '../models/service.dart';
 
 class InfoCard extends StatelessWidget {

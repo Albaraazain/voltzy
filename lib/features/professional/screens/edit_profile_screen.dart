@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../providers/database_provider.dart';
-import '../../../models/professional_model.dart';
 import '../../common/widgets/custom_button.dart';
 import '../../common/widgets/custom_text_field.dart';
 
@@ -48,8 +47,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // Update controllers with professional data
       setState(() {
-        _nameController.text = professional?.profile?.name ?? '';
-        _emailController.text = professional?.profile?.email ?? '';
+        _nameController.text = professional.profile?.name ?? '';
+        _emailController.text = professional.profile?.email ?? '';
         _rateController.text = professional.hourlyRate.toString();
         _isInitialized = true;
       });

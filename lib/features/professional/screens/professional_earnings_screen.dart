@@ -548,7 +548,6 @@ class _EarningsCard extends StatelessWidget {
   final Color backgroundColor;
 
   const _EarningsCard({
-    super.key,
     required this.title,
     required this.amount,
     required this.period,

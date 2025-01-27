@@ -5,7 +5,6 @@ import '../../../providers/database_provider.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../../models/service_model.dart';
-import '../widgets/broadcast_request_progress_card.dart';
 
 class BroadcastRequestMapScreen extends StatefulWidget {
   final Service service;
@@ -65,13 +64,6 @@ class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
   Future<void> _requestBroadcastJob() async {
     if (_isRequestingJob) return;
 
-    if (widget.service.basePrice == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Service price not set')),
-      );
-      return;
-    }
-
     setState(() => _isRequestingJob = true);
     try {
       await Provider.of<DatabaseProvider>(context, listen: false)
@@ -80,7 +72,7 @@ class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
         description: 'Broadcast request for ${widget.service.name}',
         serviceId: widget.service.id,
         hours: 2.0, // Default hours, could be made configurable
-        pricePerHour: widget.service.basePrice!,
+        pricePerHour: widget.service.basePrice,
         lat: _selectedLocation.latitude,
         lng: _selectedLocation.longitude,
         radiusKm: _selectedRadius,

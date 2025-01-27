@@ -3,9 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'base_service_model.dart';
 import 'profile_model.dart';
 import 'professional_service_model.dart';
-import 'location_model.dart';
-import 'payment_info_model.dart';
-import 'notification_preferences_model.dart';
 
 @immutable
 class Professional {

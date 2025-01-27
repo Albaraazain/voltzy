@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class StatusBadge extends StatelessWidget {
   final String status;
 
-  const StatusBadge({Key? key, required this.status}) : super(key: key);
+  const StatusBadge({super.key, required this.status});
 
   (Color, Color) getStatusColors() {
     switch (status) {
@@ -40,9 +40,9 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
   final Map<String, dynamic> job;
 
   const ProfessionalJobDetailsScreen({
-    Key? key,
+    super.key,
     required this.job,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

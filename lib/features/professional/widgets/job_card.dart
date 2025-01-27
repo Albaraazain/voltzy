@@ -15,7 +15,7 @@ class JobCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const JobCard({
-    Key? key,
+    super.key,
     required this.serviceType,
     required this.clientName,
     required this.clientInitials,
@@ -27,7 +27,7 @@ class JobCard extends StatelessWidget {
     this.notes,
     this.tags,
     this.onTap,
-  }) : super(key: key);
+  });
 
   void _navigateToJobDetails(BuildContext context) {
     Navigator.pushNamed(

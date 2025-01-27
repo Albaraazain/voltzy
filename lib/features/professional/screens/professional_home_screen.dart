@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../core/config/routes.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/appointment_card.dart';
 import '../widgets/review_card.dart';

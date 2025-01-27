@@ -3,16 +3,14 @@ import 'package:provider/provider.dart';
 import 'package:flashy_tab_bar2/flashy_tab_bar2.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/bottom_navigation_provider.dart';
-import '../../../core/routes/app_router.dart';
 import '../../../core/config/routes.dart';
 import 'professional_home_screen.dart';
 import 'professional_calendar_screen.dart';
 import 'professional_messages_screen.dart';
 import 'professional_profile_screen.dart';
-import 'professional_services_management_screen.dart';
 
 class ProfessionalMainScreen extends StatefulWidget {
-  const ProfessionalMainScreen({Key? key}) : super(key: key);
+  const ProfessionalMainScreen({super.key});
 
   @override
   State<ProfessionalMainScreen> createState() => _ProfessionalMainScreenState();

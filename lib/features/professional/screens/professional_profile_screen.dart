@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/database_provider.dart';
-import '../../../models/professional_model.dart';
 import '../../../models/professional_service_model.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/config/routes.dart';
@@ -12,11 +11,11 @@ class StatCard extends StatelessWidget {
   final IconData icon;
 
   const StatCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     required this.icon,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -76,13 +75,13 @@ class ServiceCard extends StatelessWidget {
   final ProfessionalService service;
 
   const ServiceCard({
-    Key? key,
+    super.key,
     required this.backgroundColor,
     required this.title,
     required this.price,
     required this.duration,
     required this.service,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -174,12 +173,12 @@ class ReviewCard extends StatelessWidget {
   final String comment;
 
   const ReviewCard({
-    Key? key,
+    super.key,
     required this.name,
     required this.rating,
     required this.date,
     required this.comment,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -248,7 +247,7 @@ class ReviewCard extends StatelessWidget {
 }
 
 class ProfessionalProfileScreen extends StatelessWidget {
-  const ProfessionalProfileScreen({Key? key}) : super(key: key);
+  const ProfessionalProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -397,7 +396,9 @@ class ProfessionalProfileScreen extends StatelessWidget {
                                   size: 16, color: Colors.amber.shade600),
                               const SizedBox(width: 4),
                               Text(
-                                '${professional.rating != null ? '${professional.rating!.toStringAsFixed(1)} (${professional.reviewCount ?? 0})' : 'No ratings yet'}',
+                                professional.rating != null
+                                    ? '${professional.rating!.toStringAsFixed(1)} (${professional.reviewCount ?? 0})'
+                                    : 'No ratings yet',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey[600],
@@ -429,7 +430,9 @@ class ProfessionalProfileScreen extends StatelessWidget {
                             size: 16, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
-                          '${professional.hourlyRate != null ? '${professional.hourlyRate!.toStringAsFixed(2)}/hr' : 'Rate varies'}',
+                          professional.hourlyRate != null
+                              ? '${professional.hourlyRate!.toStringAsFixed(2)}/hr'
+                              : 'Rate varies',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -489,7 +492,7 @@ class ProfessionalProfileScreen extends StatelessWidget {
                           service: service,
                         ),
                       );
-                    }).toList(),
+                    }),
                     const SizedBox(height: 24),
 
                     // Reviews

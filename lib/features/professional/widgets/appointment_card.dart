@@ -9,13 +9,13 @@ class AppointmentCard extends StatelessWidget {
   final String avatar;
 
   const AppointmentCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.time,
     required this.client,
     required this.status,
     required this.avatar,
-  }) : super(key: key);
+  });
 
   void _navigateToJobDetails(BuildContext context) {
     Navigator.pushNamed(
