@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../models/base_service_model.dart';
+import '../../../providers/database_provider.dart';
+import '../../../core/services/logger_service.dart';
+import '../../../core/widgets/loading_overlay.dart';
+import 'broadcast_request_map_screen.dart';
 
 class BroadcastJobScreen extends StatefulWidget {
   final BaseService service;
@@ -19,6 +24,7 @@ class _BroadcastJobScreenState extends State<BroadcastJobScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   final List<int> _hourOptions = [1, 2, 3, 4];
   List<double> _budgetOptions = [75, 100, 125, 150];
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -39,37 +45,68 @@ class _BroadcastJobScreenState extends State<BroadcastJobScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 32),
-                    _buildDurationSelector(),
-                    const SizedBox(height: 24),
-                    _buildBudgetSelector(),
-                    const SizedBox(height: 24),
-                    _buildDescriptionInput(),
-                    const SizedBox(height: 24),
-                    _buildTotalCost(),
-                  ],
-                ),
-              ),
-            ),
-          ],
+  Future<void> _proceedToMap() async {
+    if (_descriptionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please add a description of your request')),
+      );
+      return;
+    }
+
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BroadcastRequestMapScreen(
+          service: widget.service,
+          initialLat: 0.0, // You should get user's current location here
+          initialLng: 0.0,
+          hours: _selectedHours,
+          budget: _selectedBudget,
+          description: _descriptionController.text,
         ),
       ),
-      bottomNavigationBar: _buildBottomBar(),
+    );
+
+    if (result == true && mounted) {
+      Navigator.pop(context, true); // Return success to previous screen
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LoadingOverlay(
+      isLoading: _isLoading,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(),
+                      const SizedBox(height: 32),
+                      _buildDurationSelector(),
+                      const SizedBox(height: 24),
+                      _buildBudgetSelector(),
+                      const SizedBox(height: 24),
+                      _buildDescriptionInput(),
+                      const SizedBox(height: 24),
+                      _buildTotalCost(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        bottomNavigationBar: _buildBottomBar(),
+      ),
     );
   }
 
@@ -378,8 +415,7 @@ class _BroadcastJobScreenState extends State<BroadcastJobScreen> {
 
   Widget _buildBottomBar() {
     return Container(
-      padding: EdgeInsets.fromLTRB(
-          24, 16, 24, 16 + MediaQuery.of(context).padding.bottom),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -390,23 +426,23 @@ class _BroadcastJobScreenState extends State<BroadcastJobScreen> {
           ),
         ],
       ),
-      child: ElevatedButton(
-        onPressed: () {
-          // TODO: Implement request service
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Theme.of(context).primaryColor,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+      child: SafeArea(
+        child: ElevatedButton(
+          onPressed: _proceedToMap,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).primaryColor,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          minimumSize: const Size(double.infinity, 56),
-        ),
-        child: const Text(
-          'Request Service',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+          child: const Text(
+            'Continue to Map',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ),
       ),
