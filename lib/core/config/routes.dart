@@ -22,6 +22,7 @@ import '../../features/professional/screens/professional_job_details_screen.dart
 import '../../features/professional/screens/professional_earnings_screen.dart';
 import '../../features/professional/screens/professional_service_details_screen.dart';
 import '../../features/professional/screens/professional_services_management_screen.dart';
+import '../../features/homeowner/screens/set_location_screen.dart';
 
 class AppRoutes {
   // Route names
@@ -94,6 +95,14 @@ class AppRoutes {
       professionalEarnings: (context) {
         LoggerService.debug('🔄 Navigating to Professional Earnings');
         return const ProfessionalEarningsScreen();
+      },
+      '/set-location': (context) {
+        final args =
+            ModalRoute.of(context)!.settings.arguments as Map<String, double>;
+        return SetLocationScreen(
+          initialLat: args['initialLat']!,
+          initialLng: args['initialLng']!,
+        );
       },
     };
   }
