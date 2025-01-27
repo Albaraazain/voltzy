@@ -4,6 +4,7 @@ import '../../../providers/bottom_navigation_provider.dart';
 import '../../common/widgets/bottom_navigation.dart';
 import 'homeowner_home_screen.dart';
 import 'homeowner_profile_screen.dart';
+import 'homeowner_jobs_screen.dart';
 
 class HomeownerMainScreen extends StatefulWidget {
   const HomeownerMainScreen({super.key});
@@ -16,7 +17,7 @@ class _HomeownerMainScreenState extends State<HomeownerMainScreen> {
   final List<Widget> _screens = [
     const HomeownerHomeScreen(),
     const Center(child: Text('Favorites')), // TODO: Implement favorites screen
-    const Center(child: Text('Jobs')), // TODO: Implement jobs screen
+    const HomeownerJobsScreen(),
     const HomeownerProfileScreen(),
   ];
 
