@@ -4,13 +4,12 @@ import '../models/schedule_slot_model.dart';
 import '../core/repositories/base_repository.dart';
 
 class AvailabilityProvider extends ChangeNotifier {
-  final SupabaseClient _supabase;
   final _repository = ScheduleSlotsRepository(Supabase.instance.client);
   bool _isLoading = false;
   String? _error;
   List<ScheduleSlot> _slots = [];
 
-  AvailabilityProvider(this._supabase);
+  AvailabilityProvider();
 
   bool get isLoading => _isLoading;
   String? get error => _error;
