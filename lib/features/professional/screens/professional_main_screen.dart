@@ -9,23 +9,24 @@ import 'professional_home_screen.dart';
 import 'professional_calendar_screen.dart';
 import 'professional_messages_screen.dart';
 import 'professional_profile_screen.dart';
+import 'professional_services_management_screen.dart';
 
 class ProfessionalMainScreen extends StatefulWidget {
   const ProfessionalMainScreen({Key? key}) : super(key: key);
 
   @override
-  ProfessionalMainScreenState createState() => ProfessionalMainScreenState();
+  State<ProfessionalMainScreen> createState() => _ProfessionalMainScreenState();
 }
 
-class ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
+class _ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
+  int _selectedIndex = 0;
+
   final List<Widget> _screens = [
     const ProfessionalHomeScreen(),
     const ProfessionalCalendarScreen(),
     const ProfessionalMessagesScreen(),
     const ProfessionalProfileScreen(),
   ];
-
-  int _selectedIndex = 0;
 
   void showMenu(BuildContext context) {
     showGeneralDialog(
@@ -238,37 +239,83 @@ class ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
           ),
           bottomNavigationBar: FlashyTabBar(
             selectedIndex: navigationProvider.selectedIndex,
-            showElevation: true,
-            onItemSelected: (index) => navigationProvider.setIndex(index),
+            showElevation: false,
+            height: 55,
             items: [
               FlashyTabBarItem(
                 icon: const Icon(Icons.home_outlined),
                 title: const Text('Home'),
-                activeColor: Colors.pink,
-                inactiveColor: Colors.grey,
               ),
               FlashyTabBarItem(
                 icon: const Icon(Icons.calendar_today),
                 title: const Text('Schedule'),
-                activeColor: Colors.pink,
-                inactiveColor: Colors.grey,
               ),
               FlashyTabBarItem(
                 icon: const Icon(Icons.message_outlined),
                 title: const Text('Messages'),
-                activeColor: Colors.pink,
-                inactiveColor: Colors.grey,
               ),
               FlashyTabBarItem(
                 icon: const Icon(Icons.person_outline),
                 title: const Text('Profile'),
-                activeColor: Colors.pink,
-                inactiveColor: Colors.grey,
               ),
             ],
+            onItemSelected: (index) {
+              navigationProvider.setIndex(index);
+            },
           ),
         );
       },
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, int index) {
+    final isSelected = _selectedIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedIndex = index),
+      child: Icon(
+        icon,
+        size: 24,
+        color: isSelected ? Colors.pink.shade500 : Colors.grey.shade400,
+      ),
+    );
+  }
+
+  Widget _buildProfileNavItem(int index) {
+    final isSelected = _selectedIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedIndex = index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.pink.shade500 : Colors.pink.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                'ME',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? Colors.white : Colors.pink.shade700,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.pink.shade500 : Colors.transparent,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
