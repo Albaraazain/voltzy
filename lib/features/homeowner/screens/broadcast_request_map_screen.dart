@@ -31,28 +31,39 @@ class BroadcastRequestMapScreen extends StatefulWidget {
 
 class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
   late LatLng _selectedLocation;
-  double _selectedRadius = 5.0; // Default 5km radius
+  final double _searchRadius = 25.0; // Fixed 25km radius
   int _nearbyProfessionalsCount = 0;
   bool _isLoading = false;
   bool _isRequestingJob = false;
+  GoogleMapController? _mapController;
 
   @override
   void initState() {
     super.initState();
     _selectedLocation = LatLng(widget.initialLat, widget.initialLng);
+    LoggerService.debug('Initial location: $_selectedLocation');
     _updateNearbyProfessionalsCount();
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
   }
 
   Future<void> _updateNearbyProfessionalsCount() async {
     setState(() => _isLoading = true);
     try {
+      LoggerService.debug(
+          'Counting professionals at: $_selectedLocation with radius: $_searchRadius km');
       final count = await Provider.of<DatabaseProvider>(context, listen: false)
           .countNearbyProfessionals(
         serviceId: widget.service.id,
         lat: _selectedLocation.latitude,
         lng: _selectedLocation.longitude,
-        radiusKm: _selectedRadius,
+        radiusKm: _searchRadius,
       );
+      LoggerService.debug('Found $count professionals');
       setState(() => _nearbyProfessionalsCount = count);
     } catch (e) {
       LoggerService.error('Error counting nearby professionals: $e');
@@ -71,6 +82,13 @@ class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
 
     setState(() => _isRequestingJob = true);
     try {
+      LoggerService.debug('Creating broadcast job:');
+      LoggerService.debug('- Service: ${widget.service.name}');
+      LoggerService.debug('- Location: $_selectedLocation');
+      LoggerService.debug('- Hours: ${widget.hours}');
+      LoggerService.debug('- Budget: ${widget.budget}');
+      LoggerService.debug('- Radius: $_searchRadius km');
+
       await Provider.of<DatabaseProvider>(context, listen: false)
           .createBroadcastJob(
         title: 'Service Request: ${widget.service.name}',
@@ -80,8 +98,10 @@ class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
         pricePerHour: widget.budget / widget.hours,
         lat: _selectedLocation.latitude,
         lng: _selectedLocation.longitude,
-        radiusKm: _selectedRadius,
+        radiusKm: _searchRadius,
       );
+
+      LoggerService.debug('Broadcast job created successfully');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -109,7 +129,7 @@ class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
       isLoading: _isRequestingJob,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Select Area'),
+          title: const Text('Service Area'),
           elevation: 0,
         ),
         body: Stack(
@@ -119,20 +139,26 @@ class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
                 target: _selectedLocation,
                 zoom: 14,
               ),
-              onCameraMove: (position) {
-                setState(() {
-                  _selectedLocation = position.target;
-                });
+              onMapCreated: (controller) {
+                _mapController = controller;
+                LoggerService.debug('Map created');
               },
-              onCameraIdle: _updateNearbyProfessionalsCount,
               circles: {
                 Circle(
                   circleId: const CircleId('searchArea'),
                   center: _selectedLocation,
-                  radius: _selectedRadius * 1000, // Convert km to meters
+                  radius: _searchRadius * 1000, // Convert km to meters
                   fillColor: Colors.blue.withOpacity(0.2),
                   strokeColor: Colors.blue,
                   strokeWidth: 1,
+                ),
+              },
+              markers: {
+                Marker(
+                  markerId: const MarkerId('homeLocation'),
+                  position: _selectedLocation,
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                      BitmapDescriptor.hueAzure),
                 ),
               },
             ),
@@ -151,26 +177,15 @@ class _BroadcastRequestMapScreenState extends State<BroadcastRequestMapScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '$_nearbyProfessionalsCount professionals found',
+                            _isLoading
+                                ? 'Searching for professionals...'
+                                : '$_nearbyProfessionalsCount professionals found',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Search radius: ${_selectedRadius.toStringAsFixed(1)} km',
+                            'Your service request will be visible to professionals within ${_searchRadius.toStringAsFixed(1)} km',
                             style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          Slider(
-                            value: _selectedRadius,
-                            min: 1,
-                            max: 50,
-                            divisions: 49,
-                            label: '${_selectedRadius.toStringAsFixed(1)} km',
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedRadius = value;
-                              });
-                              _updateNearbyProfessionalsCount();
-                            },
                           ),
                         ],
                       ),
