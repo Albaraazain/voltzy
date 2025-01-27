@@ -32,6 +32,8 @@ dependencies:
   permission_handler: ^11.0.1
   google_places_flutter: ^2.0.9
   geocoding: ^3.0.0
+  cached_network_image: ^3.3.1
+  lucide_icons: ^0.257.0
 
 dev_dependencies:
   flutter_test:
