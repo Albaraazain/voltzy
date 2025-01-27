@@ -6,6 +6,7 @@ import '../models/service_category_card.dart';
 import 'category_services_screen.dart';
 import '../../../providers/bottom_navigation_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../widgets/location_selector_widget.dart';
 
 class HomeownerHomeScreen extends StatefulWidget {
   const HomeownerHomeScreen({super.key});
@@ -265,28 +266,78 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: _isLoading
             ? const Center(child: LoadingIndicator())
-            : Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildHeader(),
-                          const SizedBox(height: 32),
-                          _buildDifficultyChips(),
-                          const SizedBox(height: 32),
-                          _buildServiceGrid(),
-                        ],
+            : RefreshIndicator(
+                onRefresh: _loadData,
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Welcome Back!',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'What service do you need today?',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SliverToBoxAdapter(
+                      child: LocationSelectorWidget(),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.all(24),
+                      sliver: SliverGrid(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 0.85,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final category = _categories[index];
+                            return GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CategoryServicesScreen(
+                                    categoryId: category.id,
+                                    categoryName: category.name,
+                                    categoryColor: category.accentColor,
+                                  ),
+                                ),
+                              ),
+                              child: category,
+                            );
+                          },
+                          childCount: _categories.length,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
       ),
     );
