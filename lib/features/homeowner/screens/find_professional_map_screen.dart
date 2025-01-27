@@ -5,7 +5,7 @@ import '../../../core/constants/colors.dart';
 import '../../../core/constants/text_styles.dart';
 import '../../../core/widgets/map_view.dart';
 import '../../../models/location_model.dart';
-import '../../../models/service_model.dart';
+import '../../../models/base_service_model.dart';
 import '../../../providers/database_provider.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/logger_service.dart';
@@ -20,7 +20,7 @@ enum SearchState {
 }
 
 class FindProfessionalMapScreen extends StatefulWidget {
-  final Service? service;
+  final BaseService service;
   final int? hours;
   final String? additionalNotes;
   final double? maxBudgetPerHour;
@@ -29,7 +29,7 @@ class FindProfessionalMapScreen extends StatefulWidget {
 
   const FindProfessionalMapScreen({
     super.key,
-    this.service,
+    required this.service,
     this.hours,
     this.maxBudgetPerHour,
     this.scheduledDate,
@@ -258,7 +258,7 @@ class _FindProfessionalMapScreenState extends State<FindProfessionalMapScreen>
 
       // Create job request without specifying an professional_id
       final job = await dbProvider.createJobRequest(
-        title: widget.service?.name ?? '',
+        title: widget.service.name,
         description: widget.additionalNotes ?? '',
         scheduledDate: widget.scheduledDate ?? DateTime.now(),
         price: widget.maxBudgetPerHour! * widget.hours!,
