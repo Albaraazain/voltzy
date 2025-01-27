@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/widgets/loading_indicator.dart';
-import '../features/homeowner/models/service.dart';
+
+import '../models/base_service_model.dart';
 import '../models/category_model.dart';
 import '../providers/database_provider.dart';
+import '../core/widgets/loading_indicator.dart';
+import '../features/homeowner/models/service.dart';
 import '../core/services/logger_service.dart';
 import '../widgets/error_view.dart';
 import '../features/homeowner/screens/broadcast_job_screen.dart';
+import '../models/service_category_model.dart';
 
 class CategoryServicesScreen extends StatefulWidget {
   final Category category;
@@ -21,7 +24,8 @@ class CategoryServicesScreen extends StatefulWidget {
 }
 
 class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
-  late Future<List<CategoryService>> _servicesFuture;
+  List<BaseService> _services = [];
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -29,11 +33,52 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
     _loadServices();
   }
 
-  void _loadServices() {
-    final databaseProvider =
-        Provider.of<DatabaseProvider>(context, listen: false);
-    _servicesFuture =
-        databaseProvider.getServicesByCategory(widget.category.id);
+  Future<void> _loadServices() async {
+    setState(() => _isLoading = true);
+    try {
+      final services = await context
+          .read<DatabaseProvider>()
+          .getServicesByCategory(widget.category.id);
+      setState(() {
+        _services = services;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading services: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildServiceList() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_services.isEmpty) {
+      return const Center(
+        child: Text('No services found for this category'),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _services.length,
+      itemBuilder: (context, index) {
+        final service = _services[index];
+        return ServiceCard(
+          service: service,
+          onTap: () => _navigateToServiceDetails(service),
+        );
+      },
+    );
+  }
+
+  void _navigateToServiceDetails(BaseService service) {
+    // Navigation logic
   }
 
   @override
@@ -43,125 +88,79 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
         title: Text(widget.category.name),
         elevation: 0,
       ),
-      body: FutureBuilder<List<CategoryService>>(
-        future: _servicesFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const LoadingIndicator();
-          }
-
-          if (snapshot.hasError) {
-            LoggerService.error('Error loading services', snapshot.error);
-            return ErrorView(
-              message: 'Failed to load services',
-              onRetry: () {
-                setState(() {
-                  _loadServices();
-                });
-              },
-            );
-          }
-
-          final services = snapshot.data!;
-          if (services.isEmpty) {
-            return Center(
-              child: Text(
-                'No services available in this category',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: services.length,
-            itemBuilder: (context, index) {
-              final service = services[index];
-              return Card(
-                elevation: 2,
-                margin: const EdgeInsets.only(bottom: 16),
-                child: InkWell(
-                  onTap: () {
-                    LoggerService.debug('Service clicked: ${service.name}');
-                    try {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => BroadcastJobScreen(
-                            service: service,
-                          ),
-                        ),
-                      );
-                    } catch (e) {
-                      LoggerService.error(
-                          'Error navigating to broadcast job screen', e);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Failed to open service details')),
-                      );
-                    }
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          service.name,
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          service.description,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Starting from \$${service.basePrice.toStringAsFixed(2)}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context).primaryColor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.access_time,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${service.durationHours} hours',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
+      body: _buildServiceList(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           // TODO: Navigate to broadcast request screen
         },
         icon: const Icon(Icons.broadcast_on_personal),
         label: const Text('Broadcast Request'),
+      ),
+    );
+  }
+}
+
+class ServiceCard extends StatelessWidget {
+  final BaseService service;
+  final VoidCallback onTap;
+
+  const ServiceCard({
+    Key? key,
+    required this.service,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                service.name,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                service.description,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Starting from \$${service.basePrice.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Theme.of(context).primaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  if (service.durationHours != null) ...[
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${service.durationHours} hours',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
