@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
-import 'package:voltz/models/location_model.dart';
-import 'package:voltz/models/payment_info_model.dart';
-import 'package:voltz/models/profile_model.dart';
-import 'package:voltz/models/service_model.dart';
-import 'package:voltz/models/notification_preferences_model.dart';
+
+import 'base_service_model.dart';
+import 'profile_model.dart';
+import 'professional_service_model.dart';
+import 'location_model.dart';
+import 'payment_info_model.dart';
+import 'notification_preferences_model.dart';
 
 @immutable
 class Professional {
@@ -13,25 +15,25 @@ class Professional {
   final String? phoneNumber;
   final String? profileImage;
   final String? bio;
-  final double hourlyRate;
+  final double? hourlyRate;
   final bool isVerified;
-  final Location? location;
-  final List<Service> services;
-  final PaymentInfo? paymentInfo;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final double rating;
-  final int reviewCount;
+  final String? location;
+  final List<ProfessionalService> services;
+  final Map<String, dynamic>? paymentInfo;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final double? rating;
+  final int? reviewCount;
   final List<String> specialties;
   final bool isAvailable;
-  final Profile profile;
+  final Profile? profile;
   final String? phone;
   final String? licenseNumber;
-  final int yearsOfExperience;
-  final NotificationPreferences? notificationPreferences;
+  final int? yearsOfExperience;
+  final Map<String, dynamic>? notificationPreferences;
   final double? locationLat;
   final double? locationLng;
-  final int jobsCompleted;
+  final int? jobsCompleted;
 
   const Professional({
     required this.id,
@@ -40,60 +42,63 @@ class Professional {
     this.phoneNumber,
     this.profileImage,
     this.bio,
-    required this.hourlyRate,
-    required this.isVerified,
+    this.hourlyRate,
+    this.isVerified = false,
     this.location,
     required this.services,
     this.paymentInfo,
-    required this.createdAt,
-    required this.updatedAt,
-    this.rating = 0.0,
-    this.reviewCount = 0,
+    this.createdAt,
+    this.updatedAt,
+    this.rating,
+    this.reviewCount,
     this.specialties = const [],
     this.isAvailable = true,
-    required this.profile,
+    this.profile,
     this.phone,
     this.licenseNumber,
-    required this.yearsOfExperience,
+    this.yearsOfExperience,
     this.notificationPreferences,
     this.locationLat,
     this.locationLng,
-    this.jobsCompleted = 0,
+    this.jobsCompleted,
   });
 
   factory Professional.fromJson(Map<String, dynamic> json) {
-    final profile = Profile.fromJson(json['profile'] as Map<String, dynamic>);
+    final profile = json['profile'] != null
+        ? Profile.fromJson(json['profile'] as Map<String, dynamic>)
+        : null;
 
-    // Parse services from professional_services junction table
-    final services = <Service>[];
-    if (json['professional_services'] != null) {
-      final professionalServices =
-          json['professional_services'] as List<dynamic>;
-      services.addAll(professionalServices.map(
-          (ps) => Service.fromJson(ps['service'] as Map<String, dynamic>)));
-    }
+    final services =
+        (json['professional_services'] as List<dynamic>?)?.map((ps) {
+              final baseService =
+                  BaseService.fromJson(ps['service'] as Map<String, dynamic>);
+              return ProfessionalService.fromJson(ps, baseService);
+            }).toList() ??
+            [];
 
     return Professional(
       id: json['id'] as String,
-      name: profile.name,
-      email: profile.email,
+      name: profile?.name ?? '',
+      email: profile?.email ?? '',
       phoneNumber: json['phone_number'] as String?,
       profileImage: json['profile_image'] as String?,
       bio: json['bio'] as String?,
-      hourlyRate: (json['hourly_rate'] as num?)?.toDouble() ?? 0.0,
-      isVerified: json['is_verified'] as bool? ?? false,
-      location:
-          json['location'] != null ? Location.fromJson(json['location']) : null,
-      services: services,
-      paymentInfo: json['payment_info'] != null
-          ? PaymentInfo.fromJson(json['payment_info'])
+      hourlyRate: json['hourly_rate'] != null
+          ? (json['hourly_rate'] as num).toDouble()
           : null,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      isVerified: json['is_verified'] as bool? ?? false,
+      location: json['location'] as String?,
+      services: services,
+      paymentInfo: json['payment_info'] as Map<String, dynamic>?,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
-          : DateTime.now(),
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      reviewCount: json['review_count'] as int? ?? 0,
+          : null,
+      rating:
+          json['rating'] != null ? (json['rating'] as num).toDouble() : null,
+      reviewCount: json['review_count'] as int?,
       specialties: (json['specialties'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
@@ -102,14 +107,16 @@ class Professional {
       profile: profile,
       phone: json['phone'] as String?,
       licenseNumber: json['license_number'] as String?,
-      yearsOfExperience: json['years_of_experience'] as int? ?? 0,
-      notificationPreferences: json['notification_preferences'] != null
-          ? NotificationPreferences.fromJson(
-              json['notification_preferences'] as Map<String, dynamic>)
+      yearsOfExperience: json['years_of_experience'] as int?,
+      notificationPreferences:
+          json['notification_preferences'] as Map<String, dynamic>?,
+      locationLat: json['location_lat'] != null
+          ? (json['location_lat'] as num).toDouble()
           : null,
-      locationLat: json['location_lat'] as double?,
-      locationLng: json['location_lng'] as double?,
-      jobsCompleted: json['jobs_completed'] as int? ?? 0,
+      locationLng: json['location_lng'] != null
+          ? (json['location_lng'] as num).toDouble()
+          : null,
+      jobsCompleted: json['jobs_completed'] as int?,
     );
   }
 
@@ -123,20 +130,18 @@ class Professional {
       'bio': bio,
       'hourly_rate': hourlyRate,
       'is_verified': isVerified,
-      'location': location?.toJson(),
-      'services': services.map((e) => e.toJson()).toList(),
-      'payment_info': paymentInfo?.toJson(),
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'location': location,
+      'payment_info': paymentInfo,
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
       'rating': rating,
       'review_count': reviewCount,
       'specialties': specialties,
       'is_available': isAvailable,
-      'profile': profile.toJson(),
       'phone': phone,
       'license_number': licenseNumber,
       'years_of_experience': yearsOfExperience,
-      'notification_preferences': notificationPreferences?.toJson(),
+      'notification_preferences': notificationPreferences,
       'location_lat': locationLat,
       'location_lng': locationLng,
       'jobs_completed': jobsCompleted,
@@ -152,9 +157,9 @@ class Professional {
     String? bio,
     double? hourlyRate,
     bool? isVerified,
-    Location? location,
-    List<Service>? services,
-    PaymentInfo? paymentInfo,
+    String? location,
+    List<ProfessionalService>? services,
+    Map<String, dynamic>? paymentInfo,
     DateTime? createdAt,
     DateTime? updatedAt,
     double? rating,
@@ -165,7 +170,7 @@ class Professional {
     String? phone,
     String? licenseNumber,
     int? yearsOfExperience,
-    NotificationPreferences? notificationPreferences,
+    Map<String, dynamic>? notificationPreferences,
     double? locationLat,
     double? locationLng,
     int? jobsCompleted,
