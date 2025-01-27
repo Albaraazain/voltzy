@@ -1,98 +1,133 @@
+// This file is deprecated. Use base_service_model.dart and professional_service_model.dart instead.
+export 'base_service_model.dart';
+export 'professional_service_model.dart';
+
 import 'package:flutter/foundation.dart';
+import 'base_service_model.dart';
 
 @immutable
-class Service {
-  final String id;
+class Service extends BaseService {
+  @override
+  final String description;
+  @override
+  final double basePrice;
+  @override
+  final double? durationHours;
+  @override
   final String categoryId;
-  final String name;
-  final String? description;
-  final double? basePrice;
-  final int? estimatedDuration;
+  @override
   final DateTime createdAt;
+  @override
   final DateTime updatedAt;
+  @override
+  final DateTime? deletedAt;
 
   const Service({
-    required this.id,
+    required String id,
+    required String name,
+    required this.description,
+    required this.basePrice,
     required this.categoryId,
-    required this.name,
-    this.description,
-    this.basePrice,
-    this.estimatedDuration,
+    this.durationHours,
     required this.createdAt,
     required this.updatedAt,
-  });
-
-  // Getter for backward compatibility
-  String get title => name;
+    this.deletedAt,
+  }) : super(
+          id: id,
+          name: name,
+          description: description,
+          basePrice: basePrice,
+          categoryId: categoryId,
+          durationHours: durationHours,
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+          deletedAt: deletedAt,
+        );
 
   factory Service.fromJson(Map<String, dynamic> json) {
     return Service(
       id: json['id'] as String,
-      categoryId: json['category_id'] as String,
       name: json['name'] as String,
-      description: json['description'] as String?,
-      basePrice: json['base_price'] != null
-          ? (json['base_price'] as num).toDouble()
-          : null,
-      estimatedDuration: json['estimated_duration'] as int?,
+      description: json['description'] as String,
+      basePrice: (json['base_price'] as num).toDouble(),
+      categoryId: json['category_id'] as String,
+      durationHours: (json['duration_hours'] as num?)?.toDouble(),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      deletedAt: json['deleted_at'] != null
+          ? DateTime.parse(json['deleted_at'] as String)
+          : null,
     );
   }
 
+  @override
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'category_id': categoryId,
       'name': name,
       'description': description,
       'base_price': basePrice,
-      'estimated_duration': estimatedDuration,
+      'duration_hours': durationHours,
+      'category_id': categoryId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'deleted_at': deletedAt?.toIso8601String(),
     };
   }
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Service &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          categoryId == other.categoryId &&
-          name == other.name &&
-          description == other.description &&
-          basePrice == other.basePrice &&
-          estimatedDuration == other.estimatedDuration;
-
-  @override
-  int get hashCode =>
-      id.hashCode ^
-      categoryId.hashCode ^
-      name.hashCode ^
-      description.hashCode ^
-      basePrice.hashCode ^
-      estimatedDuration.hashCode;
-
   Service copyWith({
     String? id,
-    String? categoryId,
     String? name,
     String? description,
     double? basePrice,
-    int? estimatedDuration,
+    String? categoryId,
+    double? durationHours,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? deletedAt,
   }) {
     return Service(
       id: id ?? this.id,
-      categoryId: categoryId ?? this.categoryId,
       name: name ?? this.name,
       description: description ?? this.description,
       basePrice: basePrice ?? this.basePrice,
-      estimatedDuration: estimatedDuration ?? this.estimatedDuration,
+      categoryId: categoryId ?? this.categoryId,
+      durationHours: durationHours ?? this.durationHours,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is Service &&
+        other.id == id &&
+        other.name == name &&
+        other.description == description &&
+        other.basePrice == basePrice &&
+        other.categoryId == categoryId &&
+        other.durationHours == durationHours &&
+        other.createdAt == createdAt &&
+        other.updatedAt == updatedAt &&
+        other.deletedAt == deletedAt;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      id,
+      name,
+      description,
+      basePrice,
+      categoryId,
+      durationHours,
+      createdAt,
+      updatedAt,
+      deletedAt,
     );
   }
 }
