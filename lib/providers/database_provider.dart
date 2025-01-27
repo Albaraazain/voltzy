@@ -343,6 +343,7 @@ class DatabaseProvider with ChangeNotifier {
 
       var query = _client.from('jobs').select('''
         *,
+        service:services!service_id (*),
         professional:professionals (
           *,
           profile:profiles (*)
@@ -369,7 +370,25 @@ class DatabaseProvider with ChangeNotifier {
       LoggerService.debug('User ID: ${_currentProfile?.id}');
 
       final response = await query;
-      return response.map((json) => Job.fromJson(json)).toList();
+      LoggerService.debug('Raw response from database: $response');
+
+      final jobs = <Job>[];
+      for (final json in response) {
+        try {
+          LoggerService.debug('Processing job with ID: ${json['id']}');
+          LoggerService.debug('Service data: ${json['service']}');
+          LoggerService.debug('Professional data: ${json['professional']}');
+          LoggerService.debug('Homeowner data: ${json['homeowner']}');
+          jobs.add(Job.fromJson(json));
+          LoggerService.debug('Successfully processed job ${json['id']}');
+        } catch (e, stackTrace) {
+          LoggerService.error(
+              'Error processing job ${json['id']}: $e', e, stackTrace);
+          rethrow;
+        }
+      }
+
+      return jobs;
     } catch (e, stackTrace) {
       LoggerService.error('Failed to load jobs', e, stackTrace);
       rethrow;
@@ -1222,7 +1241,7 @@ class DatabaseProvider with ChangeNotifier {
     }
   }
 
-  Future<void> createBroadcastJob({
+  Future<String> createBroadcastJob({
     required String title,
     required String description,
     required String serviceId,
@@ -1233,28 +1252,72 @@ class DatabaseProvider with ChangeNotifier {
     required double radiusKm,
   }) async {
     try {
-      final homeowner = currentHomeowner;
-      if (homeowner == null) {
-        throw Exception('No homeowner profile found');
-      }
+      final userId = _authProvider.userId;
+      if (userId == null) throw Exception('User not authenticated');
 
-      await _client.from('jobs').insert({
-        'title': title,
-        'description': description,
-        'status': 'awaiting_acceptance',
-        'date': DateTime.now().toIso8601String(),
-        'homeowner_id': homeowner.id,
-        'price': pricePerHour * hours,
-        'location_lat': lat,
-        'location_lng': lng,
-        'radius_km': radiusKm,
-        'request_type': 'broadcast',
-        'service_id': serviceId,
-        'payment_status': 'payment_pending',
-        'verification_status': 'verification_pending',
-      });
-    } catch (e) {
-      throw Exception('Failed to create broadcast job: $e');
+      final response = await _client
+          .from('jobs')
+          .insert({
+            'title': title,
+            'description': description,
+            'service_id': serviceId,
+            'homeowner_id': userId,
+            'status': 'awaiting_acceptance',
+            'payment_status': 'payment_pending',
+            'verification_status': 'verification_pending',
+            'price': pricePerHour * hours,
+            'location_lat': lat,
+            'location_lng': lng,
+            'radius_km': radiusKm,
+            'request_type': 'broadcast',
+            'date': DateTime.now().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      return response['id'] as String;
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to create broadcast job', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<Professional?> checkJobAcceptance(String jobId) async {
+    try {
+      final response = await _client
+          .from('job_professional_requests')
+          .select('professional_id, professionals(*)')
+          .eq('job_id', jobId)
+          .eq('status', 'accepted')
+          .maybeSingle();
+
+      if (response == null) return null;
+
+      final professionalData =
+          response['professionals'] as Map<String, dynamic>;
+      return Professional.fromJson(professionalData);
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to check job acceptance', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> confirmBroadcastJob(String jobId, String professionalId) async {
+    try {
+      await _client.from('jobs').update({
+        'status': 'accepted',
+        'professional_id': professionalId,
+      }).eq('id', jobId);
+
+      // Update all other professional requests to expired
+      await _client
+          .from('job_professional_requests')
+          .update({'status': 'expired'})
+          .eq('job_id', jobId)
+          .neq('professional_id', professionalId);
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to confirm broadcast job', e, stackTrace);
+      rethrow;
     }
   }
 
