@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/services/logger_service.dart';
+import '../models/profile_model.dart' as profile_models;
 import '../models/professional_model.dart';
 import '../models/homeowner_model.dart';
-import '../models/profile_model.dart' as profile_models;
 import '../models/job_model.dart';
+import '../models/base_service_model.dart';
+import '../models/professional_service_model.dart';
 import '../models/review_model.dart';
 import '../models/service_model.dart';
 import '../models/working_hours_model.dart';
@@ -14,20 +16,23 @@ import '../models/payment_info_model.dart';
 import '../models/notification_preferences_model.dart';
 import '../repositories/professional_repository.dart';
 import '../repositories/homeowner_repository.dart';
+import '../repositories/service_repository.dart';
 import 'auth_provider.dart';
 import '../models/schedule_slot_model.dart' as schedule;
-import '../models/category_model.dart' as category_model;
+import '../models/category_model.dart';
 import '../core/utils/api_response.dart';
 import '../models/service_category_model.dart';
 import '../features/homeowner/models/service.dart';
+import '../core/config/supabase_config.dart';
 
 // Import the USE_DEVELOPMENT_ENV constant
 
 class DatabaseProvider with ChangeNotifier {
   final AuthProvider _authProvider;
-  final ProfessionalRepository _professionalRepo;
-  final HomeownerRepository _homeownerRepo;
-  final SupabaseClient _client;
+  late final SupabaseClient _client;
+  late final ProfessionalRepository _professionalRepo;
+  late final HomeownerRepository _homeownerRepo;
+  late final ServiceRepository _serviceRepo;
 
   bool _isLoading = false;
   profile_models.Profile? _currentProfile;
@@ -36,11 +41,14 @@ class DatabaseProvider with ChangeNotifier {
   Homeowner? _currentHomeowner;
   bool _isInitialized = false;
   String? _error;
+  Job? _currentJob;
+  List<Category>? _categories;
 
-  DatabaseProvider(this._authProvider)
-      : _client = _authProvider.client,
-        _professionalRepo = ProfessionalRepository(_authProvider.client),
-        _homeownerRepo = HomeownerRepository(_authProvider.client) {
+  DatabaseProvider(this._authProvider) {
+    _client = SupabaseConfig.client;
+    _professionalRepo = ProfessionalRepository(_client);
+    _homeownerRepo = HomeownerRepository(_client);
+    _serviceRepo = ServiceRepository(_client);
     _initialize();
     _authProvider.addListener(_onAuthStateChanged);
   }
@@ -140,6 +148,7 @@ class DatabaseProvider with ChangeNotifier {
 
     try {
       _isLoading = true;
+      _error = null;
       notifyListeners();
 
       final userId = _authProvider.userId;
@@ -149,27 +158,30 @@ class DatabaseProvider with ChangeNotifier {
       }
 
       // Load profile first
-      final profileResponse =
-          await _client.from('profiles').select().eq('id', userId).single();
+      try {
+        final profileResponse =
+            await _client.from('profiles').select().eq('id', userId).single();
 
-      _currentProfile = profile_models.Profile.fromJson(profileResponse);
-      LoggerService.debug('Current profile type: ${_currentProfile?.userType}');
+        _currentProfile = profile_models.Profile.fromJson(profileResponse);
+        LoggerService.debug(
+            'Current profile type: ${_currentProfile?.userType}');
 
-      // Load role-specific data based on user type
-      if (_currentProfile?.userType == profile_models.UserType.professional) {
-        await _loadProfessionalData();
-        // For professionals, we only need their own profile
-      } else if (_currentProfile?.userType ==
-          profile_models.UserType.homeowner) {
-        await _loadHomeownerData();
-        // For homeowners, we load all verified professionals
-        await loadProfessionals();
+        // Load role-specific data based on user type
+        if (_currentProfile?.userType == profile_models.UserType.professional) {
+          await _loadProfessionalData();
+        } else if (_currentProfile?.userType ==
+            profile_models.UserType.homeowner) {
+          await _loadHomeownerData();
+          // For homeowners, we load all verified professionals
+          await loadProfessionals();
+        }
+      } catch (e, stackTrace) {
+        LoggerService.error('Failed to load profile data', e, stackTrace);
+        _error = 'Failed to load profile data: ${e.toString()}';
+        rethrow;
       }
 
       notifyListeners();
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to load initial data', e, stackTrace);
-      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -184,9 +196,8 @@ class DatabaseProvider with ChangeNotifier {
         throw Exception('No profile ID available');
       }
 
-      final professionalRepo = ProfessionalRepository(_client);
       _currentProfessional =
-          await professionalRepo.getCurrentProfessional(_currentProfile!.id);
+          await _professionalRepo.getCurrentProfessional(_currentProfile!.id);
 
       if (_currentProfessional != null) {
         LoggerService.debug('✅ Professional data loaded successfully');
@@ -199,6 +210,7 @@ class DatabaseProvider with ChangeNotifier {
       notifyListeners();
     } catch (e, stackTrace) {
       LoggerService.error('❌ Failed to load professional data', e, stackTrace);
+      _error = 'Failed to load professional data: ${e.toString()}';
       rethrow;
     }
   }
@@ -225,60 +237,13 @@ class DatabaseProvider with ChangeNotifier {
     }
   }
 
-  double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    if (lat1 == 0 || lon1 == 0 || lat2 == 0 || lon2 == 0) {
-      LoggerService.debug(
-          'Invalid coordinates detected: ($lat1, $lon1) -> ($lat2, $lon2)');
-      return double.infinity;
-    }
-
-    const double earthRadius = 6371; // Radius of the earth in km
-
-    // Convert degrees to radians
-    final double lat1Rad = lat1 * pi / 180;
-    final double lon1Rad = lon1 * pi / 180;
-    final double lat2Rad = lat2 * pi / 180;
-    final double lon2Rad = lon2 * pi / 180;
-
-    // Haversine formula
-    final double dLat = lat2Rad - lat1Rad;
-    final double dLon = lon2Rad - lon1Rad;
-    final double a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(lat1Rad) * cos(lat2Rad) * sin(dLon / 2) * sin(dLon / 2);
-    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    final double distance = earthRadius * c;
-
-    LoggerService.debug(
-        'Distance calculated: ${distance.toStringAsFixed(2)}km between ($lat1, $lon1) -> ($lat2, $lon2)');
-    return distance;
-  }
-
   Future<List<Professional>> findProfessionalsWithinRadius(
       double lat, double lng, double radiusKm) async {
-    try {
-      if (!_authProvider.isAuthenticated) {
-        throw Exception('User must be authenticated to search professionals');
-      }
-
-      final professionals = _professionals.where((professional) {
-        if (professional.locationLat == null ||
-            professional.locationLng == null) {
-          return false;
-        }
-        final distance = calculateDistance(
-          lat,
-          lng,
-          professional.locationLat!,
-          professional.locationLng!,
-        );
-        return distance <= radiusKm;
-      }).toList();
-
-      return professionals;
-    } catch (e) {
-      LoggerService.error('Error finding professionals within radius: $e');
-      rethrow;
-    }
+    return _professionalRepo.getNearbyProfessionals(
+      latitude: lat,
+      longitude: lng,
+      radiusKm: radiusKm,
+    );
   }
 
   Future<void> addProfessional(Professional professional) async {
@@ -511,25 +476,69 @@ class DatabaseProvider with ChangeNotifier {
     }
   }
 
-  Future<void> updateProfessionalProfile(Professional professional) async {
+  Future<void> updateProfessional(Professional? professional) async {
     try {
       if (!_authProvider.isAuthenticated) {
         throw Exception(
             'User must be authenticated to update professional profile');
       }
 
-      final data = professional.toJson();
-      data['hourly_rate'] = (data['hourly_rate'] as num).toDouble();
+      final professionalId = professional?.id;
+      if (professionalId == null) {
+        throw Exception('Professional ID is required for update');
+      }
 
-      await _client
-          .from('professionals')
-          .update(data)
-          .eq('id', professional.id);
+      final data = <String, dynamic>{};
 
+      // Only add non-null values to the update data
+      if (professional?.name != null) data['name'] = professional!.name;
+      if (professional?.email != null) data['email'] = professional!.email;
+      if (professional?.phone != null) data['phone'] = professional!.phone;
+      if (professional?.profileImage != null)
+        data['profile_image'] = professional!.profileImage;
+      if (professional?.bio != null) data['bio'] = professional!.bio;
+      if (professional?.hourlyRate != null)
+        data['hourly_rate'] = professional!.hourlyRate;
+      if (professional?.isVerified != null)
+        data['is_verified'] = professional!.isVerified;
+      if (professional?.location != null)
+        data['location'] = professional!.location;
+      if (professional?.paymentInfo != null) {
+        final paymentInfo = professional!.paymentInfo;
+        if (paymentInfo is Map<String, dynamic>) {
+          data['payment_info'] = paymentInfo;
+        }
+      }
+      if (professional?.createdAt != null)
+        data['created_at'] = professional!.createdAt;
+      if (professional?.updatedAt != null)
+        data['updated_at'] = professional!.updatedAt;
+      if (professional?.rating != null) data['rating'] = professional!.rating;
+      if (professional?.reviewCount != null)
+        data['review_count'] = professional!.reviewCount;
+      if (professional?.specialties != null)
+        data['specialties'] = professional!.specialties;
+      if (professional?.isAvailable != null)
+        data['is_available'] = professional!.isAvailable;
+      if (professional?.licenseNumber != null)
+        data['license_number'] = professional!.licenseNumber;
+      if (professional?.yearsOfExperience != null)
+        data['years_of_experience'] = professional!.yearsOfExperience;
+      if (professional?.notificationPreferences != null) {
+        data['notification_preferences'] =
+            professional!.notificationPreferences;
+      }
+      if (professional?.locationLat != null)
+        data['location_lat'] = professional!.locationLat;
+      if (professional?.locationLng != null)
+        data['location_lng'] = professional!.locationLng;
+      if (professional?.jobsCompleted != null)
+        data['jobs_completed'] = professional!.jobsCompleted;
+
+      await _client.from('professionals').update(data).eq('id', professionalId);
       await loadProfessionals();
     } catch (e, stackTrace) {
-      LoggerService.error(
-          'Failed to update professional profile', e, stackTrace);
+      LoggerService.error('Error updating professional', e, stackTrace);
       rethrow;
     }
   }
@@ -540,24 +549,11 @@ class DatabaseProvider with ChangeNotifier {
         throw Exception('No user logged in');
       }
 
-      await _client.from('professionals').update({
-        'location_lat': lat,
-        'location_lng': lng,
-      }).eq('id', _currentProfile!.id);
-
-      // Update local state
-      if (_professionals.isNotEmpty) {
-        final professional = _professionals.first;
-        _professionals = [
-          professional.copyWith(
-            locationLat: lat,
-            locationLng: lng,
-          )
-        ];
-      }
-
-      notifyListeners();
+      await _professionalRepo.updateProfessionalLocation(
+          _currentProfile!.id, lat, lng);
+      await refreshProfessionalData();
     } catch (e) {
+      LoggerService.error('Failed to update professional location', e);
       rethrow;
     }
   }
@@ -565,18 +561,11 @@ class DatabaseProvider with ChangeNotifier {
   Future<void> updateProfessionalAvailability(
       String professionalId, bool isAvailable) async {
     try {
-      if (!_authProvider.isAuthenticated) {
-        throw Exception('User must be authenticated to update availability');
-      }
-
-      await _client
-          .from('professionals')
-          .update({'is_available': isAvailable}).eq('id', professionalId);
-
-      await loadProfessionals();
-    } catch (e, stackTrace) {
-      LoggerService.error(
-          'Failed to update professional availability', e, stackTrace);
+      await _professionalRepo.updateProfessionalAvailability(
+          professionalId, isAvailable);
+      await refreshProfessionalData();
+    } catch (e) {
+      LoggerService.error('Failed to update professional availability', e);
       rethrow;
     }
   }
@@ -610,692 +599,64 @@ class DatabaseProvider with ChangeNotifier {
     }
   }
 
-  Future<List<Service>> getServicesByIds(List<String> serviceIds) async {
+  Future<List<BaseService>> getAllServices() async {
     try {
       final response = await _client
           .from('services')
           .select()
-          .filter('id', 'in', serviceIds);
+          .filter('deleted_at', 'is', null)
+          .order('name');
 
-      final List<Map<String, dynamic>> data =
-          List<Map<String, dynamic>>.from(response);
-      return data.map((item) => Service.fromJson(item)).toList();
-    } catch (e) {
-      LoggerService.error('Failed to get services by IDs', e);
-      rethrow;
-    }
-  }
-
-  Future<void> addService(String professionalId, String serviceId) async {
-    try {
-      final professional =
-          _professionals.firstWhere((e) => e.id == professionalId);
-      final currentServiceIds = professional.services.map((s) => s.id).toList();
-      if (!currentServiceIds.contains(serviceId)) {
-        await updateProfessionalServices(
-            professionalId, [...currentServiceIds, serviceId]);
-      }
-    } catch (e) {
-      LoggerService.error('Failed to add service', e);
-      rethrow;
-    }
-  }
-
-  Future<void> removeService(String professionalId, String serviceId) async {
-    try {
-      final professional =
-          _professionals.firstWhere((e) => e.id == professionalId);
-      final currentServiceIds = professional.services.map((s) => s.id).toList();
-      if (currentServiceIds.contains(serviceId)) {
-        await updateProfessionalServices(
-          professionalId,
-          currentServiceIds.where((id) => id != serviceId).toList(),
-        );
-      }
-    } catch (e) {
-      LoggerService.error('Failed to remove service', e);
-      rethrow;
-    }
-  }
-
-  Future<void> updateProfessionalWorkingHours(
-      String professionalId, List<WorkingHours> workingHours) async {
-    try {
-      final hoursJson = workingHours.map((w) => w.toJson()).toList();
-      await _client.from('professionals').update({
-        'working_hours': hoursJson,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', professionalId);
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<void> updateProfessionalPaymentInfo(PaymentInfo paymentInfo) async {
-    try {
-      final currentProfessional = _professionals.firstWhere(
-        (e) => e.profile.id == currentProfile?.id,
-      );
-
-      // Update the professional in the database with the payment info as JSONB
-      await _client.from('professionals').update({
-        'payment_info': paymentInfo.toJson(),
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', currentProfessional.id);
-
-      // Update local state with the new payment info
-      final index =
-          _professionals.indexWhere((p) => p.id == currentProfessional.id);
-      if (index != -1) {
-        _professionals[index] = currentProfessional.copyWith(
-          paymentInfo: paymentInfo,
-          updatedAt: DateTime.now(),
-        );
-      }
-
-      notifyListeners();
-    } catch (e) {
-      LoggerService.error('Error updating payment info: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> updateProfessionalRating(
-      String professionalId, double? rating) async {
-    try {
-      if (rating == null) return;
-      final num ratingValue = rating;
-      await _client.from('professionals').update({
-        'rating': ratingValue,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', professionalId);
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<void> updateProfessionalNotificationPreferences(
-      NotificationPreferences preferences) async {
-    try {
-      if (!_authProvider.isAuthenticated) {
-        throw Exception(
-            'User must be authenticated to update notification preferences');
-      }
-
-      final professional = _professionals.firstWhere(
-          (e) => e.profile.id == _currentProfile!.id,
-          orElse: () => throw Exception('Professional not found'));
-
-      await _client
-          .from('professionals')
-          .update({'notificationPreferences': preferences.toJson()}).eq(
-              'id', professional.id);
-
-      await loadProfessionals();
+      return response.map((row) => BaseService.fromJson(row)).toList();
     } catch (e, stackTrace) {
-      LoggerService.error(
-          'Failed to update notification preferences', e, stackTrace);
+      LoggerService.error('Failed to load services', e, stackTrace);
       rethrow;
     }
   }
 
-  // Real-time subscriptions
-  void subscribeToJobs(void Function(Job) onJobUpdate) {
-    _client
-        .from('jobs')
-        .stream(primaryKey: ['id']).listen((List<Map<String, dynamic>> data) {
-      if (data.isNotEmpty) {
-        final job = Job.fromJson(data.first);
-        onJobUpdate(job);
-      }
-    });
-  }
-
-  // Professional Management Methods
-  Future<void> searchProfessionals({
-    String? searchQuery,
-    List<String>? specialties,
-    double? minRating,
-    double? maxPrice,
-    int limit = 10,
-    int offset = 0,
-  }) async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
-      final query = _client.from('professionals').select('''
-            *,
-            hourly_rate::float as hourly_rate,
-            profile:profiles (
-              id,
-              email,
-              user_type,
-              name,
-              created_at
-            )
-          ''').eq('is_verified', true);
-
-      // Apply filters using filter() for complex queries
-      if (searchQuery != null && searchQuery.isNotEmpty) {
-        query.filter('profile.name', 'ilike', '%$searchQuery%');
-      }
-
-      if (specialties != null && specialties.isNotEmpty) {
-        query.filter('specialties', 'cs', specialties);
-      }
-
-      if (minRating != null) {
-        query.filter('rating', 'gte', minRating);
-      }
-
-      if (maxPrice != null) {
-        query.filter('hourly_rate', 'lte', maxPrice);
-      }
-
-      // Apply pagination and ordering
-      final response = await query
-          .range(offset, offset + limit - 1)
-          .order('rating', ascending: false);
-
-      _professionals = response.map((data) {
-        final profile = profile_models.Profile.fromJson(data['profile']);
-        return Professional.fromJson(data);
-      }).toList();
-
-      _isLoading = false;
-      notifyListeners();
-    } catch (e, stackTrace) {
-      _isLoading = false;
-      LoggerService.error('Failed to load professionals', e, stackTrace);
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  // Cache Management
-  final Map<String, dynamic> _cache = {};
-  final Duration _cacheDuration = const Duration(minutes: 15);
-
-  Future<T> _withCache<T>(String key, Future<T> Function() fetchData) async {
-    final cacheEntry = _cache[key];
-    if (cacheEntry != null) {
-      final timestamp = cacheEntry['timestamp'] as DateTime;
-      if (DateTime.now().difference(timestamp) < _cacheDuration) {
-        return cacheEntry['data'] as T;
-      }
-    }
-
-    final data = await fetchData();
-    _cache[key] = {
-      'data': data,
-      'timestamp': DateTime.now(),
-    };
-    return data;
-  }
-
-  void clearCache() {
-    _cache.clear();
-  }
-
-  // Enhanced Job Search
-  Future<List<Job>> searchJobs({
-    String? searchQuery,
-    String? status,
-    String? professionalId,
-    String? homeownerId,
-    DateTime? startDate,
-    DateTime? endDate,
-  }) async {
-    try {
-      var query = _client.from('jobs').select();
-
-      if (searchQuery != null && searchQuery.isNotEmpty) {
-        query = query
-            .or('title.ilike.%$searchQuery%,description.ilike.%$searchQuery%');
-      }
-
-      if (status != null) {
-        query = query.eq('status', status);
-      }
-
-      if (professionalId != null) {
-        query = query.eq('professional_id', professionalId);
-      }
-
-      if (homeownerId != null) {
-        query = query.eq('homeowner_id', homeownerId);
-      }
-
-      if (startDate != null) {
-        query = query.gte('date', startDate.toIso8601String());
-      }
-
-      if (endDate != null) {
-        query = query.lte('date', endDate.toIso8601String());
-      }
-
-      final response = await query.order('created_at', ascending: false);
-
-      return response.map((data) => Job.fromJson(data)).toList();
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to search jobs', e, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<List<Review>> getProfessionalReviews(String professionalId) async {
+  Future<List<Category>> getAllCategories() async {
     try {
       final response = await _client
-          .from('reviews')
-          .select('''
-            *,
-            reviewer:profiles!reviewer_id(*)
-          ''')
-          .eq('professional_id', professionalId)
-          .order('created_at', ascending: false);
-
-      return response.map((review) => Review.fromJson(review)).toList();
+          .from('service_categories')
+          .select('*')
+          .filter('deleted_at', 'is', null)
+          .order('name');
+      return (response as List<dynamic>)
+          .map((json) => Category.fromJson(json))
+          .toList();
     } catch (e, stackTrace) {
-      LoggerService.error('Failed to get professional reviews', e, stackTrace);
+      LoggerService.error('Failed to fetch categories', e, stackTrace);
       rethrow;
     }
   }
 
-  Future<List<Job>> getJobsForProfessional(String professionalId) async {
+  Future<List<Category>> getServiceCategories() async {
+    return getAllCategories();
+  }
+
+  Future<List<BaseService>> getBaseServicesByCategory(String categoryId) async {
+    return _serviceRepo.getServicesByCategory(categoryId);
+  }
+
+  Future<List<BaseService>> getServicesByCategory(String categoryId) async {
+    return _serviceRepo.getServicesByCategory(categoryId);
+  }
+
+  Future<BaseService?> getServiceById(String id) async {
     try {
-      final response = await _client
-          .from('jobs')
-          .select()
-          .eq('professional_id', professionalId);
-      return response.map((job) => Job.fromJson(job)).toList();
+      return await _serviceRepo.getBaseServiceById(id);
     } catch (e, stackTrace) {
-      LoggerService.error('Failed to get jobs for professional', e, stackTrace);
+      LoggerService.error('Failed to load service', e, stackTrace);
       rethrow;
     }
   }
 
-  Future<List<Job>> getJobsForHomeowner(String homeownerId) async {
+  Future<ServiceCategory?> getCategoryById(String id) async {
     try {
-      final response =
-          await _client.from('jobs').select().eq('homeowner_id', homeownerId);
-      return response.map((job) => Job.fromJson(job)).toList();
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to get jobs for homeowner', e, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<Job> getJob(String jobId) async {
-    try {
-      final response = await _client.from('jobs').select('''
-            *,
-            homeowner:homeowners!homeowner_id (
-              id,
-              profile_id,
-              phone,
-              address,
-              preferred_contact_method,
-              emergency_contact,
-              created_at,
-              profile:profiles!profile_id (
-                id,
-                email,
-                user_type,
-                name,
-                created_at,
-                last_login_at
-              )
-            ),
-            professional:professionals(professional_id) (
-              id,
-              profile_id,
-              profile_image,
-              phone,
-              license_number,
-              years_of_experience,
-              hourly_rate,
-              rating,
-              jobs_completed,
-              is_available,
-              is_verified,
-              services,
-              specialties,
-              profile:profiles (
-                id,
-                email,
-                user_type,
-                name,
-                created_at,
-                last_login_at
-              )
-            )
-          ''').eq('id', jobId).single();
-
-      return Job.fromJson(response);
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to get job', e, stackTrace);
-      throw Exception('Failed to get job: $e');
-    }
-  }
-
-  Future<List<Review>> getReviewsForProfessional(String professionalId) async {
-    try {
-      final response = await _client
-          .from('reviews')
-          .select()
-          .eq('reviewee_id', professionalId)
-          .eq('reviewer_type', 'HOMEOWNER');
-      return response.map((review) => Review.fromJson(review)).toList();
-    } catch (e, stackTrace) {
-      LoggerService.error(
-          'Failed to get reviews for professional', e, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<void> updatePaymentInfo(PaymentInfo paymentInfo) async {
-    if (!_authProvider.isAuthenticated) {
-      throw Exception(
-          'User must be authenticated to update payment information');
-    }
-
-    try {
-      final currentProfessional = _professionals.firstWhere(
-        (e) => e.profile.id == currentProfile?.id,
-      );
-
-      // Update the professional in the database with the payment info as JSONB
-      await _client.from('professionals').update({
-        'payment_info': paymentInfo.toJson(),
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', currentProfessional.id);
-
-      // Update local state with the new payment info
-      final index =
-          _professionals.indexWhere((p) => p.id == currentProfessional.id);
-      if (index != -1) {
-        _professionals[index] = currentProfessional.copyWith(
-          paymentInfo: paymentInfo,
-          updatedAt: DateTime.now(),
-        );
-      }
-
-      notifyListeners();
+      return await _serviceRepo.getCategoryById(id);
     } catch (e) {
-      LoggerService.error('Error updating payment info: $e');
+      LoggerService.error('Failed to get category', e);
       rethrow;
-    }
-  }
-
-  Future<void> updateHomeownerNotificationPreferences({
-    required bool jobUpdates,
-    required bool messages,
-    required bool payments,
-    required bool promotions,
-  }) async {
-    try {
-      if (_currentHomeowner == null) {
-        throw Exception('No homeowner logged in');
-      }
-
-      await _client.from('homeowners').update({
-        'notification_job_updates': jobUpdates,
-        'notification_messages': messages,
-        'notification_payments': payments,
-        'notification_promotions': promotions,
-      }).eq('id', _currentHomeowner!.id);
-
-      // Update local state
-      _currentHomeowner = Homeowner(
-        id: _currentHomeowner!.id,
-        profile: _currentHomeowner!.profile,
-        phone: _currentHomeowner!.phone,
-        address: _currentHomeowner!.address,
-        preferredContactMethod: _currentHomeowner!.preferredContactMethod,
-        emergencyContact: _currentHomeowner!.emergencyContact,
-        createdAt: _currentHomeowner!.createdAt,
-        notificationJobUpdates: jobUpdates,
-        notificationMessages: messages,
-        notificationPayments: payments,
-        notificationPromotions: promotions,
-      );
-
-      notifyListeners();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<void> updateHomeownerContactPreference(String method) async {
-    try {
-      if (_currentHomeowner == null) {
-        throw Exception('No homeowner logged in');
-      }
-
-      await _client.from('homeowners').update({
-        'preferred_contact_method': method,
-      }).eq('id', _currentHomeowner!.id);
-
-      // Update local state
-      _currentHomeowner = Homeowner(
-        id: _currentHomeowner!.id,
-        profile: _currentHomeowner!.profile,
-        phone: _currentHomeowner!.phone,
-        address: _currentHomeowner!.address,
-        preferredContactMethod: method,
-        emergencyContact: _currentHomeowner!.emergencyContact,
-        createdAt: _currentHomeowner!.createdAt,
-        notificationJobUpdates: _currentHomeowner!.notificationJobUpdates,
-        notificationMessages: _currentHomeowner!.notificationMessages,
-        notificationPayments: _currentHomeowner!.notificationPayments,
-        notificationPromotions: _currentHomeowner!.notificationPromotions,
-      );
-
-      notifyListeners();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<void> updateHomeownerPersonalInfo({
-    required String name,
-    required String phone,
-    required String emergencyContact,
-  }) async {
-    try {
-      if (_currentHomeowner == null) {
-        throw Exception('No homeowner logged in');
-      }
-
-      // Update profile name
-      await _client.from('profiles').update({
-        'name': name,
-      }).eq('id', _currentProfile!.id);
-
-      // Update homeowner phone and emergency contact
-      await _client.from('homeowners').update({
-        'phone': phone,
-        'emergency_contact': emergencyContact,
-      }).eq('id', _currentHomeowner!.id);
-
-      // Update local profile state
-      _currentProfile = profile_models.Profile(
-        id: _currentProfile!.id,
-        email: _currentProfile!.email,
-        userType: _currentProfile!.userType,
-        name: name,
-        createdAt: _currentProfile!.createdAt,
-      );
-
-      // Update local homeowner state
-      _currentHomeowner = Homeowner(
-        id: _currentHomeowner!.id,
-        profile: _currentProfile!,
-        phone: phone,
-        address: _currentHomeowner!.address,
-        preferredContactMethod: _currentHomeowner!.preferredContactMethod,
-        emergencyContact: emergencyContact,
-        createdAt: _currentHomeowner!.createdAt,
-        notificationJobUpdates: _currentHomeowner!.notificationJobUpdates,
-        notificationMessages: _currentHomeowner!.notificationMessages,
-        notificationPayments: _currentHomeowner!.notificationPayments,
-        notificationPromotions: _currentHomeowner!.notificationPromotions,
-      );
-
-      notifyListeners();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<void> updateHomeownerAddress(String address) async {
-    try {
-      if (_currentHomeowner == null) {
-        throw Exception('No homeowner logged in');
-      }
-
-      await _client.from('homeowners').update({
-        'address': address,
-      }).eq('id', _currentHomeowner!.id);
-
-      // Update local state
-      _currentHomeowner = Homeowner(
-        id: _currentHomeowner!.id,
-        profile: _currentHomeowner!.profile,
-        phone: _currentHomeowner!.phone,
-        address: address,
-        preferredContactMethod: _currentHomeowner!.preferredContactMethod,
-        emergencyContact: _currentHomeowner!.emergencyContact,
-        createdAt: _currentHomeowner!.createdAt,
-        notificationJobUpdates: _currentHomeowner!.notificationJobUpdates,
-        notificationMessages: _currentHomeowner!.notificationMessages,
-        notificationPayments: _currentHomeowner!.notificationPayments,
-        notificationPromotions: _currentHomeowner!.notificationPromotions,
-      );
-
-      notifyListeners();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  String getCurrentHomeownerId() {
-    if (_currentHomeowner == null) {
-      throw Exception('No homeowner is currently logged in');
-    }
-    return _currentHomeowner!.id;
-  }
-
-  Future<void> bookAppointment({
-    required String professionalId,
-    required String homeownerId,
-    required String slotId,
-    required String description,
-  }) async {
-    LoggerService.info('Booking appointment');
-    LoggerService.debug('Booking details:\n'
-        'Professional ID: $professionalId\n'
-        'Homeowner ID: $homeownerId\n'
-        'Slot ID: $slotId\n'
-        'Description: $description');
-
-    try {
-      // First, update the slot status to booked
-      final slotResponse = await _client
-          .from('schedule_slots')
-          .update({
-            'status': schedule.ScheduleSlot.STATUS_BOOKED,
-          })
-          .eq('id', slotId)
-          .eq('status', schedule.ScheduleSlot.STATUS_AVAILABLE)
-          .select()
-          .single();
-
-      LoggerService.debug('Updated slot: $slotResponse');
-
-      // Get the professional's hourly rate and services
-      final professionalResponse = await _client
-          .from('professionals')
-          .select('hourly_rate, services')
-          .eq('id', professionalId)
-          .single();
-
-      final hourlyRate = professionalResponse['hourly_rate'] as num;
-      final services = professionalResponse['services'] as List<dynamic>;
-
-      // Use service price if available, otherwise use hourly rate
-      double price = hourlyRate.toDouble();
-      if (services.isNotEmpty) {
-        // Find matching service based on description
-        final matchingService = services.firstWhere(
-          (service) => description
-              .toLowerCase()
-              .contains(service['title'].toString().toLowerCase()),
-          orElse: () => null,
-        );
-        if (matchingService != null) {
-          price = (matchingService['price'] as num).toDouble();
-        }
-      }
-
-      // Ensure minimum price
-      price = price <= 0 ? 20.0 : price;
-
-      // Then, create a job for this appointment
-      final jobResponse = await _client
-          .from('jobs')
-          .insert({
-            'title': 'Service Appointment',
-            'description': description,
-            'status': 'PENDING',
-            'date': DateTime.now().toIso8601String(),
-            'professional_id': professionalId,
-            'homeowner_id': homeownerId,
-            'created_at': DateTime.now().toIso8601String(),
-            'payment_status': 'payment_pending',
-            'verification_status': 'verification_pending',
-            'price': price,
-          })
-          .select()
-          .single();
-
-      LoggerService.debug('Created job: $jobResponse');
-
-      // Finally, link the job to the slot
-      await _client.from('schedule_slots').update({
-        'job_id': jobResponse['id'],
-      }).eq('id', slotId);
-
-      LoggerService.info('Successfully booked appointment');
-    } catch (e) {
-      LoggerService.error(
-        'Failed to book appointment: ${e.toString()}',
-      );
-      throw Exception('Failed to book appointment: ${e.toString()}');
-    }
-  }
-
-  Future<Service?> getServiceById(String serviceId) async {
-    try {
-      // Try to get from cache first
-      return await _withCache<Service?>('service_$serviceId', () async {
-        final response = await _client
-            .from('services')
-            .select()
-            .eq('id', serviceId)
-            .maybeSingle();
-
-        if (response == null) {
-          LoggerService.debug('Service not found with ID: $serviceId');
-          return null;
-        }
-
-        return Service.fromJson(response);
-      });
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to get service by ID', e, stackTrace);
-      return null;
     }
   }
 
@@ -1533,11 +894,11 @@ class DatabaseProvider with ChangeNotifier {
 
     LoggerService.debug('Starting streamNearbyJobRequests');
     final professional = _professionals.firstWhere(
-      (e) => e.profile.id == _currentProfile!.id,
+      (e) => e.profile?.id == _currentProfile?.id,
       orElse: () => throw Exception('Professional not found'),
     );
     LoggerService.debug(
-        'Found professional: ${professional.profile.name} with hourly rate: ${professional.hourlyRate}');
+        'Found professional: ${professional.profile?.name ?? 'Unknown'} with hourly rate: ${professional.hourlyRate}');
 
     final now = DateTime.now().toIso8601String();
     return _client
@@ -1619,15 +980,16 @@ class DatabaseProvider with ChangeNotifier {
               return false;
             }
 
-            if (professional.location == null) {
+            if (professional.locationLat == null ||
+                professional.locationLng == null) {
               LoggerService.debug(
                   'Job ${job.id} skipped: Professional location not set');
               return false;
             }
 
-            final distance = calculateDistance(
-              professional.location!.latitude,
-              professional.location!.longitude,
+            final distance = _calculateDistance(
+              professional.locationLat!,
+              professional.locationLng!,
               job.locationLat!,
               job.locationLng!,
             );
@@ -1640,7 +1002,8 @@ class DatabaseProvider with ChangeNotifier {
 
             final isWithinRadius =
                 job.radiusKm != null && distance <= job.radiusKm!;
-            final hasSufficientPrice = job.price >= professional.hourlyRate;
+            final hasSufficientPrice =
+                job.price >= (professional.hourlyRate ?? 0);
             final isAvailable = professional.isAvailable;
             final isVerified = professional.isVerified;
 
@@ -1761,31 +1124,21 @@ class DatabaseProvider with ChangeNotifier {
     }
   }
 
-  Future<void> updateJobStatus(String jobId, String status) async {
+  Future<void> updateJobStatus(String jobId, String newStatus) async {
     try {
-      if (status == Job.STATUS_SCHEDULED) {
-        await _client.from('jobs').update({
-          'status': status,
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', jobId);
-      } else if (status == Job.STATUS_STARTED) {
-        await _client.from('jobs').update({
-          'status': status,
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', jobId);
-      } else if (status == Job.STATUS_COMPLETED) {
-        await _client.from('jobs').update({
-          'status': status,
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', jobId);
-      } else if (status == Job.STATUS_CANCELLED) {
-        await _client.from('jobs').update({
-          'status': status,
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('id', jobId);
+      if (!Job.VALID_STATUS_TRANSITIONS[newStatus]!.contains(newStatus)) {
+        throw Exception('Invalid status transition');
       }
+
+      await _client.from('jobs').update({
+        'status': newStatus,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', jobId);
+
+      notifyListeners();
     } catch (e) {
-      LoggerService.error('Error updating job status: $e');
+      _error = 'Failed to update job status: $e';
+      notifyListeners();
       rethrow;
     }
   }
@@ -1807,52 +1160,6 @@ class DatabaseProvider with ChangeNotifier {
     }
   }
 
-  Future<List<category_model.Category>> getCategories() async {
-    try {
-      final response = await _client.from('categories').select().order('name');
-
-      return (response as List<dynamic>)
-          .map((json) => category_model.Category.fromJson(json))
-          .toList();
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to get categories', e, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<List<CategoryService>> getServicesByCategory(String categoryId) async {
-    try {
-      final response = await _client
-          .from('services')
-          .select()
-          .filter('category_id', 'eq', categoryId)
-          .filter('deleted_at', 'is', null)
-          .order('name');
-
-      return (response as List<dynamic>)
-          .map((json) => CategoryService.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      LoggerService.error('Failed to get services by category', e);
-      rethrow;
-    }
-  }
-
-  Future<category_model.Category> getCategoryById(String categoryId) async {
-    try {
-      final response = await _client
-          .from('categories')
-          .select()
-          .eq('id', categoryId)
-          .single();
-
-      return category_model.Category.fromJson(response);
-    } catch (e, stackTrace) {
-      LoggerService.error('Failed to get category by ID', e, stackTrace);
-      rethrow;
-    }
-  }
-
   String getCurrentProfessionalId() {
     if (_currentProfile == null ||
         _currentProfile!.userType != profile_models.UserType.professional) {
@@ -1860,37 +1167,33 @@ class DatabaseProvider with ChangeNotifier {
     }
 
     final professional = _professionals.firstWhere(
-      (e) => e.profile.id == _currentProfile!.id,
+      (e) => e.profile?.id == _currentProfile?.id,
       orElse: () => throw Exception('Professional profile not found'),
     );
 
     return professional.id;
   }
 
-  Future<ApiResponse<Service>> getService(String id) async {
+  Future<ApiResponse<BaseService>> getService(String id) async {
     try {
-      final response =
-          await _client.from('services').select().eq('id', id).single();
-
-      return ApiResponse.success(Service.fromJson(response));
+      final service = await _serviceRepo.getBaseServiceById(id);
+      if (service == null) {
+        return ApiResponse.error('Service not found');
+      }
+      return ApiResponse.success(service);
     } catch (e) {
       return ApiResponse.error(e.toString());
     }
   }
 
-  Future<List<ServiceCategory>> loadServiceCategories() async {
+  Future<List<Category>> loadServiceCategories() async {
     try {
-      final response = await _client
-          .from('service_categories')
-          .select()
-          .filter('deleted_at', 'is', null)
-          .order('name');
-
-      return (response as List)
-          .map((json) => ServiceCategory.fromJson(json))
-          .toList();
+      final categories = await getServiceCategories();
+      _categories = categories;
+      notifyListeners();
+      return categories;
     } catch (e) {
-      LoggerService.error('Error loading service categories', e);
+      LoggerService.error('Failed to load service categories', e);
       rethrow;
     }
   }
@@ -1992,5 +1295,362 @@ class DatabaseProvider with ChangeNotifier {
       debugPrint('Error loading services: $e');
       rethrow;
     }
+  }
+
+  // Add this method to refresh professional data
+  Future<void> refreshProfessionalData() async {
+    try {
+      if (_currentProfile?.id == null) {
+        LoggerService.error(
+            'Cannot refresh professional data: No profile ID available');
+        return;
+      }
+
+      if (_currentProfile?.userType != profile_models.UserType.professional) {
+        LoggerService.error(
+            'Cannot refresh professional data: Current user is not a professional');
+        return;
+      }
+
+      await _loadProfessionalData();
+      notifyListeners();
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to refresh professional data', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<Professional?> getCurrentProfessional() async {
+    if (!_authProvider.isAuthenticated) return null;
+
+    final user = _authProvider.user;
+    if (user == null) return null;
+
+    return _professionalRepo.getCurrentProfessional(user.id);
+  }
+
+  Future<List<Professional>> getAllProfessionals() async {
+    return _professionalRepo.getAllProfessionals();
+  }
+
+  Future<List<Professional>> searchProfessionals(String query) async {
+    return _professionalRepo.searchProfessionals(query);
+  }
+
+  Future<List<Professional>> getNearbyProfessionals({
+    required double latitude,
+    required double longitude,
+    required double radiusKm,
+    String? categoryId,
+  }) async {
+    return _professionalRepo.getNearbyProfessionals(
+      latitude: latitude,
+      longitude: longitude,
+      radiusKm: radiusKm,
+      categoryId: categoryId,
+    );
+  }
+
+  Future<void> updateProfessionalProfile({
+    required String professionalId,
+    String? bio,
+    String? phoneNumber,
+    String? licenseNumber,
+    int? yearsOfExperience,
+    List<String>? specialties,
+    double? hourlyRate,
+    bool? isAvailable,
+  }) async {
+    await _professionalRepo.updateProfessionalProfile(
+      professionalId,
+      bio: bio,
+      phoneNumber: phoneNumber,
+      licenseNumber: licenseNumber,
+      yearsOfExperience: yearsOfExperience,
+      specialties: specialties,
+      hourlyRate: hourlyRate,
+      isAvailable: isAvailable,
+    );
+    await refreshProfessionalData();
+  }
+
+  Future<void> addProfessionalService(
+      String professionalId, String serviceId, double price) async {
+    await _professionalRepo.addProfessionalService(
+        professionalId, serviceId, price);
+    await refreshProfessionalData();
+  }
+
+  Future<void> removeProfessionalService(
+      String professionalId, String serviceId) async {
+    await _professionalRepo.removeProfessionalService(
+        professionalId, serviceId);
+    await refreshProfessionalData();
+  }
+
+  Future<List<Professional>> getTopRatedProfessionals({int limit = 10}) async {
+    return _professionalRepo.getTopRatedProfessionals(limit: limit);
+  }
+
+  Future<void> updateHomeownerAddress(String address) async {
+    if (_currentHomeowner == null || _currentProfile == null) {
+      throw Exception('No homeowner data available');
+    }
+
+    try {
+      await _client
+          .from('homeowners')
+          .update({'address': address}).eq('id', _currentHomeowner!.id);
+
+      _currentHomeowner = _currentHomeowner!.copyWith(address: address);
+      notifyListeners();
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to update homeowner address', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> updateHomeownerContactPreference(String contactMethod) async {
+    if (_currentHomeowner == null) {
+      throw Exception('No homeowner data available');
+    }
+
+    try {
+      await _client.from('homeowners').update({
+        'preferred_contact_method': contactMethod,
+      }).eq('id', _currentHomeowner!.id);
+
+      // Update local state
+      _currentHomeowner = _currentHomeowner!.copyWith(
+        preferredContactMethod: contactMethod,
+      );
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to update contact preference', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> updateHomeownerNotificationPreferences({
+    required bool jobUpdates,
+    required bool messages,
+    required bool payments,
+    required bool promotions,
+  }) async {
+    if (_currentHomeowner == null) {
+      throw Exception('No homeowner data available');
+    }
+
+    try {
+      await _client.from('homeowners').update({
+        'notification_job_updates': jobUpdates,
+        'notification_messages': messages,
+        'notification_payments': payments,
+        'notification_promotions': promotions,
+      }).eq('id', _currentHomeowner!.id);
+
+      // Update local state
+      _currentHomeowner = _currentHomeowner!.copyWith(
+        notificationJobUpdates: jobUpdates,
+        notificationMessages: messages,
+        notificationPayments: payments,
+        notificationPromotions: promotions,
+      );
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to update notification preferences', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> updateHomeownerPersonalInfo({
+    required String name,
+    required String phone,
+    required String emergencyContact,
+  }) async {
+    if (_currentHomeowner == null || _currentProfile == null) {
+      throw Exception('No homeowner data available');
+    }
+
+    try {
+      // Update profile name
+      await _client
+          .from('profiles')
+          .update({'name': name}).eq('id', _currentProfile!.id);
+
+      // Update homeowner info
+      await _client.from('homeowners').update({
+        'phone': phone,
+        'emergency_contact': emergencyContact,
+      }).eq('id', _currentHomeowner!.id);
+
+      // Update local state
+      _currentProfile = _currentProfile!.copyWith(name: name);
+      _currentHomeowner = _currentHomeowner!.copyWith(
+        phone: phone,
+        emergencyContact: emergencyContact,
+      );
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to update homeowner personal info', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> updatePaymentInfo(PaymentInfo paymentInfo) async {
+    if (_currentProfessional == null) {
+      throw Exception('No professional data available');
+    }
+
+    try {
+      await _client.from('payment_info').upsert({
+        'id': paymentInfo.id,
+        'user_id': paymentInfo.userId,
+        'account_name': paymentInfo.accountName,
+        'account_number': paymentInfo.accountNumber,
+        'bank_name': paymentInfo.bankName,
+        'routing_number': paymentInfo.routingNumber,
+        'account_type': paymentInfo.accountType,
+        'is_verified': paymentInfo.isVerified,
+        'created_at': paymentInfo.createdAt?.toIso8601String(),
+        'updated_at': paymentInfo.updatedAt?.toIso8601String() ??
+            DateTime.now().toIso8601String(),
+      });
+
+      // Update local state
+      _currentProfessional = _currentProfessional!.copyWith(
+        paymentInfo: {
+          'accountName': paymentInfo.accountName,
+          'accountNumber': paymentInfo.accountNumber,
+          'bankName': paymentInfo.bankName,
+          'routingNumber': paymentInfo.routingNumber,
+          'accountType': paymentInfo.accountType,
+        },
+      );
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to update payment info', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<Job>> getJobsForProfessional(String professionalId) async {
+    try {
+      final response = await _client
+          .from('jobs')
+          .select('*')
+          .eq('professional_id', professionalId);
+
+      return (response as List<dynamic>)
+          .map((json) => Job.fromJson(json))
+          .toList();
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to fetch jobs for professional', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<Review>> getProfessionalReviews(String professionalId) async {
+    try {
+      final response = await _client
+          .from('reviews')
+          .select('*')
+          .eq('professional_id', professionalId);
+
+      return (response as List<dynamic>)
+          .map((json) => Review.fromJson(json))
+          .toList();
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to fetch reviews for professional', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> updateProfessionalRating(
+      String professionalId, double newRating) async {
+    try {
+      await _client
+          .from('professionals')
+          .update({'rating': newRating}).eq('id', professionalId);
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to update professional rating', e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<List<Review>> getReviewsForProfessional(String professionalId) async {
+    try {
+      final response = await _client
+          .from('reviews')
+          .select()
+          .eq('reviewee_id', professionalId)
+          .order('created_at', ascending: false);
+
+      return (response as List).map((data) => Review.fromJson(data)).toList();
+    } catch (e) {
+      _error = 'Failed to fetch reviews: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<List<Category>> getCategories() async {
+    try {
+      final response = await _client
+          .from('service_categories')
+          .select()
+          .filter('deleted_at', 'is', null)
+          .order('name', ascending: true);
+
+      return (response as List).map((data) => Category.fromJson(data)).toList();
+    } catch (e) {
+      _error = 'Failed to fetch categories: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> updateJobPaymentStatus(String jobId, String newStatus) async {
+    try {
+      await _client.from('jobs').update({
+        'payment_status': newStatus,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', jobId);
+
+      notifyListeners();
+    } catch (e) {
+      _error = 'Failed to update job payment status: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
+    const double earthRadius = 6371; // Radius of the earth in km
+    final double dLat = _toRadians(lat2 - lat1);
+    final double dLon = _toRadians(lon2 - lon1);
+
+    final double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_toRadians(lat1)) *
+            cos(_toRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+
+    final double c = 2 * asin(sqrt(a));
+    return earthRadius * c; // Distance in km
+  }
+
+  double _toRadians(double degree) {
+    return degree * pi / 180;
   }
 }
