@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+
+@immutable
 class NotificationPreferences {
   final bool jobUpdates;
   final bool messages;
