@@ -7,11 +7,11 @@ class WeekDay extends StatelessWidget {
   final bool isActive;
 
   const WeekDay({
-    Key? key,
+    super.key,
     required this.day,
     required this.date,
     this.isActive = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -57,14 +57,14 @@ class TimeSlot extends StatelessWidget {
   final Color backgroundColor;
 
   const TimeSlot({
-    Key? key,
+    super.key,
     required this.time,
     required this.title,
     required this.client,
     required this.location,
     required this.status,
     required this.backgroundColor,
-  }) : super(key: key);
+  });
 
   void _navigateToJobDetails(BuildContext context) {
     Navigator.pushNamed(
@@ -179,9 +179,16 @@ class TimeSlot extends StatelessWidget {
   }
 }
 
-class ProfessionalCalendarScreen extends StatelessWidget {
-  const ProfessionalCalendarScreen({Key? key}) : super(key: key);
+class ProfessionalCalendarScreen extends StatefulWidget {
+  const ProfessionalCalendarScreen({super.key});
 
+  @override
+  State<ProfessionalCalendarScreen> createState() =>
+      _ProfessionalCalendarScreenState();
+}
+
+class _ProfessionalCalendarScreenState
+    extends State<ProfessionalCalendarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
