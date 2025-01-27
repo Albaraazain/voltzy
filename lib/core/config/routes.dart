@@ -16,8 +16,7 @@ import '../../features/professional/screens/professional_messages_screen.dart';
 import '../../features/professional/screens/professional_profile_screen.dart';
 import '../../features/professional/screens/professional_main_screen.dart';
 import '../../models/professional_model.dart';
-import '../../models/service_model.dart' as pro;
-import '../../features/homeowner/models/service.dart' as home;
+import '../../models/base_service_model.dart';
 import '../../features/homeowner/screens/homeowner_profile_screen.dart';
 import '../../features/professional/screens/professional_job_details_screen.dart';
 import '../../features/professional/screens/professional_earnings_screen.dart';
@@ -148,7 +147,7 @@ class AppRoutes {
           return MaterialPageRoute(
             builder: (_) => DirectRequestJobScreen(
               professional: args['professional'] as Professional,
-              service: args['service'] as pro.Service,
+              service: args['service'] as BaseService,
               scheduledDate: args['scheduledDate'] as DateTime,
               hours: args['hours'] as int,
               budget: args['budget'] as double,
@@ -156,7 +155,7 @@ class AppRoutes {
           );
 
         case '/broadcast-job':
-          final service = settings.arguments as home.CategoryService;
+          final service = settings.arguments as BaseService;
           LoggerService.debug(
               '📢 Broadcasting job for service: ${service.name}');
           return MaterialPageRoute(
