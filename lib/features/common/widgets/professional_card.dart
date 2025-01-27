@@ -83,20 +83,18 @@ class ProfessionalCard extends StatelessWidget {
                           ),
                       ],
                     ),
-                    if (showRating && professional.rating > 0) ...[
+                    if (showRating && professional.rating != null) ...[
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          RatingBar(
-                            rating: professional.rating,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
+                          Icon(Icons.star,
+                              size: 16, color: Colors.amber.shade600),
+                          const SizedBox(width: 4),
                           Text(
-                            '(${professional.reviewCount})',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color:
-                                  theme.colorScheme.onSurface.withOpacity(0.6),
+                            '${professional.rating!.toStringAsFixed(1)} (${professional.reviewCount ?? 0})',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
                             ),
                           ),
                         ],
@@ -131,22 +129,50 @@ class ProfessionalCard extends StatelessWidget {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 16,
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
-                          ),
+                          Icon(Icons.location_on,
+                              size: 16, color: Colors.grey[600]),
                           const SizedBox(width: 4),
                           Text(
-                            professional.location!.address ?? 'Unknown location',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color:
-                                  theme.colorScheme.onSurface.withOpacity(0.6),
+                            professional.location ?? 'Unknown location',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
                             ),
                           ),
                         ],
                       ),
                     ],
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.work, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${professional.jobsCompleted ?? 0} jobs completed',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.attach_money,
+                            size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          professional.hourlyRate != null
+                              ? '\$${professional.hourlyRate!.toStringAsFixed(2)}/hr'
+                              : 'Rate varies',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
