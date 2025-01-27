@@ -45,15 +45,17 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
 
       // Update controllers with payment info data
       setState(() {
-        _accountNameController.text =
-            professional.paymentInfo?.accountName ?? '';
-        _accountNumberController.text =
-            professional.paymentInfo?.accountNumber ?? '';
-        _bankNameController.text = professional.paymentInfo?.bankName ?? '';
-        _routingNumberController.text =
-            professional.paymentInfo?.routingNumber ?? '';
-        _selectedAccountType =
-            professional.paymentInfo?.accountType ?? 'Checking';
+        final paymentInfo = professional.paymentInfo;
+        final accountName = paymentInfo?['accountName'] as String? ?? '';
+        final accountNumber = paymentInfo?['accountNumber'] as String? ?? '';
+        final bankName = paymentInfo?['bankName'] as String? ?? '';
+        final routingNumber = paymentInfo?['routingNumber'] as String? ?? '';
+        final accountType = paymentInfo?['accountType'] as String? ?? '';
+        _accountNameController.text = accountName;
+        _accountNumberController.text = accountNumber;
+        _bankNameController.text = bankName;
+        _routingNumberController.text = routingNumber;
+        _selectedAccountType = accountType;
       });
     } catch (e) {
       if (mounted) {
