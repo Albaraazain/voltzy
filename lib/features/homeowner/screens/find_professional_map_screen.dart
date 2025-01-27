@@ -10,6 +10,7 @@ import '../../../providers/database_provider.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../models/job_model.dart';
+import 'package:geolocator/geolocator.dart';
 
 enum SearchState {
   searching,
@@ -136,16 +137,26 @@ class _FindProfessionalMapScreenState extends State<FindProfessionalMapScreen>
 
       // Filter professionals: must be available and verified
       final availableprofessionals = professionals.where((e) {
-        final hasLocation = e.location != null;
-        final withinBudget = widget.maxBudgetPerHour == null ||
-            e.hourlyRate <= widget.maxBudgetPerHour!;
-        LoggerService.debug('professional ${e.profile.name}: '
+        final hasLocation = e.locationLat != null && e.locationLng != null;
+        final maxBudget = widget.maxBudgetPerHour ?? double.infinity;
+        final withinBudget = e.hourlyRate == null || e.hourlyRate! <= maxBudget;
+
+        double lat = e.locationLat ?? 0.0;
+        double lng = e.locationLng ?? 0.0;
+        double distance = Geolocator.distanceBetween(
+              currentLocation.latitude,
+              currentLocation.longitude,
+              lat,
+              lng,
+            ) /
+            1000;
+        LoggerService.debug('professional ${e.profile?.name ?? 'Unknown'}: '
             'available=${e.isAvailable}, '
             'verified=${e.isVerified}, '
             'rate=${e.hourlyRate}, '
             'hasLocation=$hasLocation, '
             'withinBudget=$withinBudget, '
-            'location=${e.location?.latitude}, ${e.location?.longitude}');
+            'distance=$distance');
         return e.isAvailable && e.isVerified && withinBudget && hasLocation;
       }).toList();
 
@@ -164,18 +175,18 @@ class _FindProfessionalMapScreenState extends State<FindProfessionalMapScreen>
 
       final markers = availableprofessionals.map((professional) {
         final position = LatLng(
-          professional.location!.latitude,
-          professional.location!.longitude,
+          professional.locationLat ?? 0.0,
+          professional.locationLng ?? 0.0,
         );
         LoggerService.debug(
-            'Creating marker for ${professional.profile.name} at location: ${position.latitude}, ${position.longitude}');
+            'Creating marker for ${professional.profile?.name ?? 'Unknown'} at location: ${position.latitude}, ${position.longitude}');
 
         return Marker(
           markerId: MarkerId('professional_${professional.id}'),
           position: position,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
           infoWindow: InfoWindow(
-            title: professional.profile.name,
+            title: professional.profile?.name ?? 'Unknown',
             snippet:
                 '${professional.rating} ★ - ${professional.hourlyRate}₺/hr',
           ),
@@ -215,7 +226,7 @@ class _FindProfessionalMapScreenState extends State<FindProfessionalMapScreen>
           .where((e) =>
               e.isAvailable &&
               e.isVerified &&
-              e.hourlyRate <= widget.maxBudgetPerHour!)
+              (e.hourlyRate ?? 0) <= (widget.maxBudgetPerHour ?? 0))
           .toList();
 
       LoggerService.debug(
@@ -247,7 +258,7 @@ class _FindProfessionalMapScreenState extends State<FindProfessionalMapScreen>
 
       // Create job request without specifying an professional_id
       final job = await dbProvider.createJobRequest(
-        title: widget.service?.title ?? '',
+        title: widget.service?.name ?? '',
         description: widget.additionalNotes ?? '',
         scheduledDate: widget.scheduledDate ?? DateTime.now(),
         price: widget.maxBudgetPerHour! * widget.hours!,
@@ -597,5 +608,28 @@ class _FindProfessionalMapScreenState extends State<FindProfessionalMapScreen>
         }
       },
     );
+  }
+
+  void _updateMarkers() {
+    final markers = <Marker>{};
+    for (final professional in _markers) {
+      final maxPrice = widget.maxBudgetPerHour ?? double.infinity;
+      final priceStr =
+          professional.infoWindow.snippet?.split('₺/hr')[0].trim() ?? '0';
+      final price = double.tryParse(priceStr) ?? 0.0;
+      if (price <= maxPrice) {
+        final position = professional.position;
+        final marker = Marker(
+          markerId: professional.markerId,
+          position: position,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          infoWindow: professional.infoWindow,
+        );
+        markers.add(marker);
+      }
+    }
+    setState(() {
+      _markers = markers;
+    });
   }
 }
