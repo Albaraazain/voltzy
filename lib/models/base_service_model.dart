@@ -25,25 +25,40 @@ class BaseService {
   });
 
   factory BaseService.fromJson(Map<String, dynamic> json) {
-    return BaseService(
-      id: json['id'] as String,
-      categoryId: json['category_id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String,
-      basePrice: (json['base_price'] as num).toDouble(),
-      durationHours: json['duration_hours'] != null
-          ? (json['duration_hours'] as num).toDouble()
-          : null,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
-          : null,
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
-          : null,
-      deletedAt: json['deleted_at'] != null
-          ? DateTime.parse(json['deleted_at'] as String)
-          : null,
-    );
+    try {
+      return BaseService(
+        id: json['id'] as String,
+        categoryId: json['category_id'] as String,
+        name: json['name'] as String,
+        description: json['description'] as String,
+        basePrice: (json['base_price'] ?? json['basePrice'] as num).toDouble(),
+        durationHours: json['duration_hours'] != null
+            ? (json['duration_hours'] as num).toDouble()
+            : json['durationHours'] != null
+                ? (json['durationHours'] as num).toDouble()
+                : null,
+        createdAt: json['created_at'] != null
+            ? DateTime.parse(json['created_at'] as String)
+            : json['createdAt'] != null
+                ? DateTime.parse(json['createdAt'] as String)
+                : null,
+        updatedAt: json['updated_at'] != null
+            ? DateTime.parse(json['updated_at'] as String)
+            : json['updatedAt'] != null
+                ? DateTime.parse(json['updatedAt'] as String)
+                : null,
+        deletedAt: json['deleted_at'] != null
+            ? DateTime.parse(json['deleted_at'] as String)
+            : json['deletedAt'] != null
+                ? DateTime.parse(json['deletedAt'] as String)
+                : null,
+      );
+    } catch (e, stackTrace) {
+      print('Error parsing BaseService: $e');
+      print('JSON data: $json');
+      print('Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
