@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/database_provider.dart';
 import 'broadcast_job_screen.dart';
+import '../../../models/base_service_model.dart';
+import '../models/service.dart';
 
 class CategoryServicesScreen extends StatefulWidget {
   final String categoryName;
@@ -59,7 +61,8 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
     }
   }
 
-  String _formatDuration(num hours) {
+  String _formatDuration(double? hours) {
+    if (hours == null) return 'Duration not specified';
     if (hours < 1) {
       return '${(hours * 60).round()} minutes service';
     } else if (hours == 1) {
@@ -181,38 +184,47 @@ class _CategoryServicesScreenState extends State<CategoryServicesScreen> {
   }
 
   Widget _buildServicesList() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     if (_services.isEmpty) {
       return const Center(
-        child: Text('No services available'),
+        child: Text('No services found for this category'),
       );
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.all(16),
       itemCount: _services.length,
       itemBuilder: (context, index) {
         final service = _services[index];
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => BroadcastJobScreen(
-                  service: service['service'],
-                ),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _buildServiceCard(
-              title: service['title'],
-              price: service['price'],
-              duration: service['duration'],
-              backgroundColor: widget.categoryColor.shade100,
-            ),
-          ),
+        return _buildServiceCard(
+          title: service['title'] as String,
+          price: service['price'] as String,
+          duration: service['duration'] as String,
+          backgroundColor: widget.categoryColor.shade100,
         );
       },
+    );
+  }
+
+  void _navigateToServiceDetails(Map<String, dynamic> service) {
+    final baseService = service['service'] as BaseService;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BroadcastJobScreen(
+          service: CategoryService(
+            id: baseService.id,
+            name: baseService.name,
+            description: baseService.description,
+            basePrice: baseService.basePrice,
+            durationHours: baseService.durationHours ?? 0,
+            categoryId: baseService.categoryId,
+          ),
+        ),
+      ),
     );
   }
 
