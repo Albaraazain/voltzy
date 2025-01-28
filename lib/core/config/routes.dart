@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/database_provider.dart';
 import '../../core/services/logger_service.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/homeowner/screens/broadcast_job_screen.dart';
-import '../../features/homeowner/screens/direct_request_job_screen.dart';
 import '../../features/homeowner/screens/direct_request_map_screen.dart';
 import '../../features/homeowner/screens/homeowner_main_screen.dart';
 import '../../features/homeowner/screens/jobs_screen.dart';
@@ -23,6 +24,8 @@ import '../../features/professional/screens/professional_earnings_screen.dart';
 import '../../features/professional/screens/professional_service_details_screen.dart';
 import '../../features/professional/screens/professional_services_management_screen.dart';
 import '../../features/homeowner/screens/set_location_screen.dart';
+import '../../features/professional/screens/client_profile_notes_screen.dart';
+import '../../models/homeowner_model.dart';
 
 class AppRoutes {
   // Route names
@@ -36,6 +39,7 @@ class AppRoutes {
   static const String professionalEarnings = '/professional/earnings';
   static const String professionalServiceDetails =
       '/professional/service-details';
+  static const String clientProfileNotes = '/professional/client-notes';
 
   static Map<String, Widget Function(BuildContext)> getRoutes() {
     return {
@@ -150,19 +154,6 @@ class AppRoutes {
             ),
           );
 
-        case '/direct-request-job':
-          final args = settings.arguments as Map<String, dynamic>;
-          LoggerService.debug('📝 Direct request job args: $args');
-          return MaterialPageRoute(
-            builder: (_) => DirectRequestJobScreen(
-              professional: args['professional'] as Professional,
-              service: args['service'] as BaseService,
-              scheduledDate: args['scheduledDate'] as DateTime,
-              hours: args['hours'] as int,
-              budget: args['budget'] as double,
-            ),
-          );
-
         case '/broadcast-job':
           final service = settings.arguments as BaseService;
           LoggerService.debug(
@@ -171,19 +162,53 @@ class AppRoutes {
             builder: (_) => BroadcastJobScreen(service: service),
           );
 
+        case clientProfileNotes:
+          final args = settings.arguments as Map<String, dynamic>;
+          final homeownerId = args['homeownerId'] as String;
+          LoggerService.debug(
+              '📝 Loading client notes for homeowner: $homeownerId');
+          return MaterialPageRoute(
+            builder: (context) => FutureBuilder<Homeowner?>(
+              future: Provider.of<DatabaseProvider>(context, listen: false)
+                  .getHomeownerById(homeownerId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                    body: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Scaffold(
+                    body: Center(
+                      child: Text('Error: ${snapshot.error}'),
+                    ),
+                  );
+                }
+
+                final homeowner = snapshot.data;
+                if (homeowner == null) {
+                  return const Scaffold(
+                    body: Center(
+                      child: Text('Homeowner not found'),
+                    ),
+                  );
+                }
+
+                return ClientProfileNotesScreen(homeowner: homeowner);
+              },
+            ),
+          );
+
         default:
           LoggerService.warning('⚠️ No route defined for ${settings.name}');
           return null;
       }
     } catch (e, stackTrace) {
       LoggerService.error('❌ Error generating route', e, stackTrace);
-      return MaterialPageRoute(
-        builder: (_) => Scaffold(
-          body: Center(
-            child: Text('Error navigating to ${settings.name}\nError: $e'),
-          ),
-        ),
-      );
+      return null;
     }
   }
 }
