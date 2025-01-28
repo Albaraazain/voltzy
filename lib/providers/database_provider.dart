@@ -1718,4 +1718,22 @@ class DatabaseProvider with ChangeNotifier {
   double _toRadians(double degree) {
     return degree * pi / 180;
   }
+
+  Future<Homeowner?> getHomeownerById(String homeownerId) async {
+    try {
+      final response = await _client
+          .from('homeowners')
+          .select('*, profiles(*)')
+          .eq('id', homeownerId)
+          .single();
+
+      if (response == null) return null;
+
+      final profile = profile_models.Profile.fromJson(response['profiles']);
+      return Homeowner.fromJson(response, profile: profile);
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to get homeowner by ID', e, stackTrace);
+      return null;
+    }
+  }
 }
