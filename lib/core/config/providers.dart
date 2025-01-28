@@ -8,6 +8,7 @@ import '../../providers/payment_provider.dart';
 import '../../providers/professional_stats_provider.dart';
 import '../../providers/schedule_provider.dart';
 import '../../providers/bottom_navigation_provider.dart';
+import '../../providers/client_notes_provider.dart';
 import '../services/supabase_config.dart';
 
 class AppProviders {
@@ -46,6 +47,9 @@ class AppProviders {
       ),
       ChangeNotifierProvider<ScheduleProvider>(
         create: (_) => ScheduleProvider(SupabaseConfig.client),
+      ),
+      ChangeNotifierProvider<ClientNotesProvider>(
+        create: (_) => ClientNotesProvider(),
       ),
     ];
   }
