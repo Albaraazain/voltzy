@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/config/routes.dart';
+import '../../../providers/database_provider.dart';
+import 'package:provider/provider.dart';
 
 class WeekDay extends StatelessWidget {
   final String day;
@@ -55,6 +57,7 @@ class TimeSlot extends StatelessWidget {
   final String location;
   final String status;
   final Color backgroundColor;
+  final String homeownerId;
 
   const TimeSlot({
     super.key,
@@ -64,6 +67,7 @@ class TimeSlot extends StatelessWidget {
     required this.location,
     required this.status,
     required this.backgroundColor,
+    required this.homeownerId,
   });
 
   void _navigateToJobDetails(BuildContext context) {
@@ -84,6 +88,19 @@ class TimeSlot extends StatelessWidget {
         'payment_method': 'Credit Card', // TODO: Make dynamic
         'notes': '',
         'tags': <String>[], // Explicitly cast to List<String>
+      },
+    );
+  }
+
+  void _navigateToClientNotes(BuildContext context) {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.clientProfileNotes,
+      arguments: {
+        'homeownerId': homeownerId,
+        'professionalId': Provider.of<DatabaseProvider>(context, listen: false)
+            .currentProfessional
+            ?.id,
       },
     );
   }
@@ -148,11 +165,15 @@ class TimeSlot extends StatelessWidget {
               children: [
                 Icon(Icons.person_outline, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 8),
-                Text(
-                  client,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
+                GestureDetector(
+                  onTap: () => _navigateToClientNotes(context),
+                  child: Text(
+                    client,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
                 ),
               ],
@@ -189,6 +210,36 @@ class ProfessionalCalendarScreen extends StatefulWidget {
 
 class _ProfessionalCalendarScreenState
     extends State<ProfessionalCalendarScreen> {
+  final List<Map<String, dynamic>> _mockAppointments = [
+    {
+      'time': '09:00 AM - 11:00 AM',
+      'title': 'Electrical Installation',
+      'client': 'Sarah Johnson',
+      'homeownerId': 'sarah_johnson_id',
+      'location': '123 Main St, Boston',
+      'status': 'In Progress',
+      'backgroundColor': Colors.pink[100]!,
+    },
+    {
+      'time': '02:00 PM - 04:00 PM',
+      'title': 'Circuit Repair',
+      'client': 'David Chen',
+      'homeownerId': 'david_chen_id',
+      'location': '456 Park Ave, Boston',
+      'status': 'Upcoming',
+      'backgroundColor': Colors.amber[100]!,
+    },
+    {
+      'time': '05:00 PM - 06:00 PM',
+      'title': 'Safety Inspection',
+      'client': 'Mark Wilson',
+      'homeownerId': 'mark_wilson_id',
+      'location': '789 Oak St, Boston',
+      'status': 'Upcoming',
+      'backgroundColor': Colors.blue[100]!,
+    },
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -283,12 +334,13 @@ class _ProfessionalCalendarScreenState
                     ),
                     const SizedBox(height: 12),
                     TimeSlot(
-                      time: '09:00 AM - 11:00 AM',
-                      title: 'Electrical Installation',
-                      client: 'Sarah Johnson',
-                      location: '123 Main St, Boston',
-                      status: 'In Progress',
-                      backgroundColor: Colors.pink[100]!,
+                      time: _mockAppointments[0]['time'],
+                      title: _mockAppointments[0]['title'],
+                      client: _mockAppointments[0]['client'],
+                      location: _mockAppointments[0]['location'],
+                      status: _mockAppointments[0]['status'],
+                      backgroundColor: _mockAppointments[0]['backgroundColor'],
+                      homeownerId: _mockAppointments[0]['homeownerId'],
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -301,20 +353,22 @@ class _ProfessionalCalendarScreenState
                     ),
                     const SizedBox(height: 12),
                     TimeSlot(
-                      time: '02:00 PM - 04:00 PM',
-                      title: 'Circuit Repair',
-                      client: 'David Chen',
-                      location: '456 Park Ave, Boston',
-                      status: 'Upcoming',
-                      backgroundColor: Colors.amber[100]!,
+                      time: _mockAppointments[1]['time'],
+                      title: _mockAppointments[1]['title'],
+                      client: _mockAppointments[1]['client'],
+                      location: _mockAppointments[1]['location'],
+                      status: _mockAppointments[1]['status'],
+                      backgroundColor: _mockAppointments[1]['backgroundColor'],
+                      homeownerId: _mockAppointments[1]['homeownerId'],
                     ),
                     TimeSlot(
-                      time: '05:00 PM - 06:00 PM',
-                      title: 'Safety Inspection',
-                      client: 'Mark Wilson',
-                      location: '789 Oak St, Boston',
-                      status: 'Upcoming',
-                      backgroundColor: Colors.blue[100]!,
+                      time: _mockAppointments[2]['time'],
+                      title: _mockAppointments[2]['title'],
+                      client: _mockAppointments[2]['client'],
+                      location: _mockAppointments[2]['location'],
+                      status: _mockAppointments[2]['status'],
+                      backgroundColor: _mockAppointments[2]['backgroundColor'],
+                      homeownerId: _mockAppointments[2]['homeownerId'],
                     ),
                   ],
                 ),
