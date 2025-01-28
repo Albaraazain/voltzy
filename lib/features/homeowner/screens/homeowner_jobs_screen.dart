@@ -2,8 +2,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../providers/database_provider.dart';
 import '../../../providers/job_provider.dart';
 import '../../../models/job_model.dart';
 import '../../../models/base_service_model.dart';
@@ -432,7 +430,7 @@ class _HomeownerJobsScreenState extends State<HomeownerJobsScreen> {
                               // Navigate to job details
                             },
                           );
-                        }).toList(),
+                        }),
                       ],
                     );
                   },
@@ -502,7 +500,7 @@ class _HomeownerJobsScreenState extends State<HomeownerJobsScreen> {
                               // Navigate to job details
                             },
                           );
-                        }).toList(),
+                        }),
                       ],
                     );
                   },

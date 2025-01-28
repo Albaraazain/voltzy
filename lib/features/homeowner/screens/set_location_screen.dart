@@ -18,7 +18,7 @@ class SetLocationScreen extends StatefulWidget {
 
 class _SetLocationScreenState extends State<SetLocationScreen> {
   late LatLng _selectedLocation;
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   void initState() {

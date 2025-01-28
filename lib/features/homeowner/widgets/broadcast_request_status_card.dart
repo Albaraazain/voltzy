@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../models/job_model.dart';
 import '../../../models/professional_model.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/professional_avatar.dart';
