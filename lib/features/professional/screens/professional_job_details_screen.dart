@@ -36,7 +36,7 @@ class StatusBadge extends StatelessWidget {
   }
 }
 
-class ProfessionalJobDetailsScreen extends StatelessWidget {
+class ProfessionalJobDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> job;
 
   const ProfessionalJobDetailsScreen({
@@ -45,8 +45,42 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
   });
 
   @override
+  State<ProfessionalJobDetailsScreen> createState() =>
+      _ProfessionalJobDetailsScreenState();
+}
+
+class _ProfessionalJobDetailsScreenState
+    extends State<ProfessionalJobDetailsScreen> {
+  void _navigateToClientNotes() {
+    if (widget.job['homeowner'] != null) {
+      Navigator.pushNamed(
+        context,
+        '/professional/client-notes',
+        arguments: widget.job['homeowner'],
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Client information not available'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Job Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.note_add),
+            onPressed: _navigateToClientNotes,
+            tooltip: 'Client Notes',
+          ),
+        ],
+      ),
       backgroundColor: Colors.grey[50],
       body: SafeArea(
         child: Stack(
@@ -89,14 +123,16 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              job['service_type'] ?? 'Electrical Installation',
+                              widget.job['service_type'] ??
+                                  'Electrical Installation',
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            StatusBadge(status: job['status'] ?? 'In Progress'),
+                            StatusBadge(
+                                status: widget.job['status'] ?? 'In Progress'),
                           ],
                         ),
                         FloatingActionButton(
@@ -121,20 +157,23 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: Colors.amber[100],
-                                  borderRadius: BorderRadius.circular(24),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    job['client_initials'] ?? 'SJ',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.amber[700],
+                              GestureDetector(
+                                onTap: _navigateToClientNotes,
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber[100],
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      widget.job['client_initials'] ?? 'SJ',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.amber[700],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -144,7 +183,8 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    job['client_name'] ?? 'Sarah Johnson',
+                                    widget.job['client_name'] ??
+                                        'Sarah Johnson',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
@@ -156,7 +196,7 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
                                           size: 16, color: Colors.amber[500]),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '${job['client_rating'] ?? '4.9'} (${job['client_jobs'] ?? '24'} jobs)',
+                                        '${widget.job['client_rating'] ?? '4.9'} (${widget.job['client_jobs'] ?? '24'} jobs)',
                                         style: TextStyle(
                                           fontSize: 14,
                                           color: Colors.grey[600],
@@ -176,7 +216,7 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  job['address'] ??
+                                  widget.job['address'] ??
                                       '123 Main St, Boston, MA 02108',
                                   style: TextStyle(
                                     fontSize: 14,
@@ -193,7 +233,7 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
                                   size: 16, color: Colors.grey[600]),
                               const SizedBox(width: 8),
                               Text(
-                                job['scheduled_time'] ??
+                                widget.job['scheduled_time'] ??
                                     'Today, 09:00 AM - 11:00 AM',
                                 style: TextStyle(
                                   fontSize: 14,
@@ -225,14 +265,16 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          _buildDetailRow('Service Type',
-                              job['service_type'] ?? 'Electrical Installation'),
                           _buildDetailRow(
-                              'Rate', '\$${job['rate'] ?? '85'}/hour'),
+                              'Service Type',
+                              widget.job['service_type'] ??
+                                  'Electrical Installation'),
+                          _buildDetailRow(
+                              'Rate', '\$${widget.job['rate'] ?? '85'}/hour'),
                           _buildDetailRow('Estimated Duration',
-                              job['duration'] ?? '2-3 hours'),
+                              widget.job['duration'] ?? '2-3 hours'),
                           _buildDetailRow('Payment Method',
-                              job['payment_method'] ?? 'Credit Card',
+                              widget.job['payment_method'] ?? 'Credit Card',
                               showBorder: false),
                         ],
                       ),
@@ -258,7 +300,7 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            job['notes'] ??
+                            widget.job['notes'] ??
                                 'Need to install new outlets in home office. Total of 4 outlets needed. Building is pre-1990s, so might need wiring update. Please bring necessary tools and materials.',
                             style: TextStyle(
                               fontSize: 14,
@@ -270,12 +312,13 @@ class ProfessionalJobDetailsScreen extends StatelessWidget {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              for (final tag in (job['tags'] as List<String>? ??
-                                  [
-                                    '4 Outlets',
-                                    'Home Office',
-                                    'Wiring Update'
-                                  ]))
+                              for (final tag
+                                  in (widget.job['tags'] as List<String>? ??
+                                      [
+                                        '4 Outlets',
+                                        'Home Office',
+                                        'Wiring Update'
+                                      ]))
                                 _buildTag(tag),
                             ],
                           ),
