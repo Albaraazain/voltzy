@@ -1,51 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:table_calendar/table_calendar.dart';
+
 import '../../../core/config/routes.dart';
 import '../../../providers/database_provider.dart';
-import 'package:provider/provider.dart';
+import '../../../providers/schedule_provider.dart';
+import '../../../models/job_model.dart';
 
 class WeekDay extends StatelessWidget {
   final String day;
   final String date;
   final bool isActive;
+  final VoidCallback onTap;
 
   const WeekDay({
     super.key,
     required this.day,
     required this.date,
     this.isActive = false,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          day,
-          style: TextStyle(
-            fontSize: 14,
-            color: isActive ? Colors.pink[500] : Colors.grey[600],
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Text(
+            day,
+            style: TextStyle(
+              fontSize: 14,
+              color: isActive ? Colors.pink[500] : Colors.grey[600],
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: isActive ? Colors.pink[100] : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Center(
-            child: Text(
-              date,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                color: isActive ? Colors.pink[500] : Colors.grey[600],
+          const SizedBox(height: 4),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isActive ? Colors.pink[100] : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Center(
+              child: Text(
+                date,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  color: isActive ? Colors.pink[500] : Colors.grey[600],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -210,222 +219,129 @@ class ProfessionalCalendarScreen extends StatefulWidget {
 
 class _ProfessionalCalendarScreenState
     extends State<ProfessionalCalendarScreen> {
-  final List<Map<String, dynamic>> _mockAppointments = [
-    {
-      'time': '09:00 AM - 11:00 AM',
-      'title': 'Electrical Installation',
-      'client': 'Sarah Johnson',
-      'homeownerId': 'sarah_johnson_id',
-      'location': '123 Main St, Boston',
-      'status': 'In Progress',
-      'backgroundColor': Colors.pink[100]!,
-    },
-    {
-      'time': '02:00 PM - 04:00 PM',
-      'title': 'Circuit Repair',
-      'client': 'David Chen',
-      'homeownerId': 'david_chen_id',
-      'location': '456 Park Ave, Boston',
-      'status': 'Upcoming',
-      'backgroundColor': Colors.amber[100]!,
-    },
-    {
-      'time': '05:00 PM - 06:00 PM',
-      'title': 'Safety Inspection',
-      'client': 'Mark Wilson',
-      'homeownerId': 'mark_wilson_id',
-      'location': '789 Oak St, Boston',
-      'status': 'Upcoming',
-      'backgroundColor': Colors.blue[100]!,
-    },
-  ];
+  late DateTime _selectedDate;
+  late List<DateTime> _weekDates;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = DateTime.now();
+    _updateWeekDates();
+    _loadAppointments();
+  }
+
+  void _updateWeekDates() {
+    final now = DateTime.now();
+    _weekDates = List.generate(7, (index) {
+      return now.add(Duration(days: index));
+    });
+  }
+
+  void _loadAppointments() {
+    final scheduleProvider =
+        Provider.of<ScheduleProvider>(context, listen: false);
+    scheduleProvider.loadAppointments(date: _selectedDate);
+  }
+
+  void _onDateSelected(DateTime date) {
+    setState(() {
+      _selectedDate = date;
+    });
+    _loadAppointments();
+  }
+
+  String _getWeekdayName(int weekday) {
+    switch (weekday) {
+      case 1:
+        return 'Mon';
+      case 2:
+        return 'Tue';
+      case 3:
+        return 'Wed';
+      case 4:
+        return 'Thu';
+      case 5:
+        return 'Fri';
+      case 6:
+        return 'Sat';
+      case 7:
+        return 'Sun';
+      default:
+        return '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          height: 4,
-                          width: 24,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[800],
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.pink[100],
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'January 2025',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.pink[700],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Schedule',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Week Selector
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Icon(Icons.chevron_left, color: Colors.grey[400]),
-                    const Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          WeekDay(day: 'Mon', date: '22'),
-                          WeekDay(day: 'Tue', date: '23'),
-                          WeekDay(day: 'Wed', date: '24'),
-                          WeekDay(day: 'Thu', date: '25'),
-                          WeekDay(day: 'Fri', date: '26', isActive: true),
-                          WeekDay(day: 'Sat', date: '27'),
-                          WeekDay(day: 'Sun', date: '28'),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.chevron_right, color: Colors.grey[400]),
-                  ],
-                ),
-                const SizedBox(height: 32),
-
-                // Schedule Timeline
-                Column(
+        child: Consumer<ScheduleProvider>(
+          builder: (context, scheduleProvider, child) {
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Morning',
+                    const Text(
+                      'Calendar',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TimeSlot(
-                      time: _mockAppointments[0]['time'],
-                      title: _mockAppointments[0]['title'],
-                      client: _mockAppointments[0]['client'],
-                      location: _mockAppointments[0]['location'],
-                      status: _mockAppointments[0]['status'],
-                      backgroundColor: _mockAppointments[0]['backgroundColor'],
-                      homeownerId: _mockAppointments[0]['homeownerId'],
                     ),
                     const SizedBox(height: 24),
-                    Text(
-                      'Afternoon',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: _weekDates.map((date) {
+                        return WeekDay(
+                          day: _getWeekdayName(date.weekday),
+                          date: date.day.toString(),
+                          isActive: date.year == _selectedDate.year &&
+                              date.month == _selectedDate.month &&
+                              date.day == _selectedDate.day,
+                          onTap: () => _onDateSelected(date),
+                        );
+                      }).toList(),
                     ),
-                    const SizedBox(height: 12),
-                    TimeSlot(
-                      time: _mockAppointments[1]['time'],
-                      title: _mockAppointments[1]['title'],
-                      client: _mockAppointments[1]['client'],
-                      location: _mockAppointments[1]['location'],
-                      status: _mockAppointments[1]['status'],
-                      backgroundColor: _mockAppointments[1]['backgroundColor'],
-                      homeownerId: _mockAppointments[1]['homeownerId'],
-                    ),
-                    TimeSlot(
-                      time: _mockAppointments[2]['time'],
-                      title: _mockAppointments[2]['title'],
-                      client: _mockAppointments[2]['client'],
-                      location: _mockAppointments[2]['location'],
-                      status: _mockAppointments[2]['status'],
-                      backgroundColor: _mockAppointments[2]['backgroundColor'],
-                      homeownerId: _mockAppointments[2]['homeownerId'],
-                    ),
+                    const SizedBox(height: 32),
+                    if (scheduleProvider.isLoading)
+                      const Center(child: CircularProgressIndicator())
+                    else if (scheduleProvider.error != null)
+                      Center(
+                        child: Text(
+                          'Error: ${scheduleProvider.error}',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      )
+                    else if (scheduleProvider.appointments.isEmpty)
+                      const Center(
+                        child: Text(
+                          'No appointments for this day',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      )
+                    else
+                      ...scheduleProvider.appointments.map((job) => TimeSlot(
+                            time: job.formattedTime,
+                            title: job.title,
+                            client:
+                                job.homeowner?.profile.name ?? 'Unknown Client',
+                            location: job.homeowner?.address ?? 'No location',
+                            status: job.status,
+                            backgroundColor: scheduleProvider
+                                .getAppointmentColor(job.status),
+                            homeownerId: job.homeownerId,
+                          )),
                   ],
                 ),
-                const SizedBox(height: 24),
-
-                // Quick Actions
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            'Block Time Off',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            'Set Availability',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
