@@ -4,7 +4,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/job_provider.dart';
 import '../../providers/notification_provider.dart';
-import '../../providers/payment_provider.dart';
 import '../../providers/professional_stats_provider.dart';
 import '../../providers/schedule_provider.dart';
 import '../../providers/bottom_navigation_provider.dart';
@@ -26,17 +25,17 @@ class AppProviders {
         ),
         update: (context, auth, previous) => previous ?? DatabaseProvider(auth),
       ),
-      ChangeNotifierProvider<JobProvider>(
-        create: (_) => JobProvider(),
+      ChangeNotifierProxyProvider<DatabaseProvider, JobProvider>(
+        create: (context) => JobProvider(
+          context.read<DatabaseProvider>(),
+        ),
+        update: (context, db, previous) => previous ?? JobProvider(db),
       ),
       ChangeNotifierProxyProvider<DatabaseProvider, NotificationProvider>(
         create: (context) => NotificationProvider(
           context.read<DatabaseProvider>(),
         ),
         update: (context, db, previous) => previous ?? NotificationProvider(db),
-      ),
-      ChangeNotifierProvider<PaymentProvider>(
-        create: (_) => PaymentProvider(SupabaseConfig.client),
       ),
       ChangeNotifierProxyProvider<DatabaseProvider, ProfessionalStatsProvider>(
         create: (context) => ProfessionalStatsProvider(
@@ -45,8 +44,11 @@ class AppProviders {
         update: (context, db, previous) =>
             previous ?? ProfessionalStatsProvider(db),
       ),
-      ChangeNotifierProvider<ScheduleProvider>(
-        create: (_) => ScheduleProvider(SupabaseConfig.client),
+      ChangeNotifierProxyProvider<AuthProvider, ScheduleProvider>(
+        create: (context) => ScheduleProvider(
+          context.read<AuthProvider>(),
+        ),
+        update: (context, auth, previous) => previous ?? ScheduleProvider(auth),
       ),
       ChangeNotifierProvider<ClientNotesProvider>(
         create: (_) => ClientNotesProvider(),
