@@ -279,6 +279,8 @@ class _HomeownerHomeScreenState extends State<HomeownerHomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            _buildHeader(),
+                            const SizedBox(height: 24),
                             Text(
                               'Welcome Back!',
                               style: Theme.of(context)
