@@ -105,18 +105,50 @@ class Job {
       final professionalData = json['professional'] as Map<String, dynamic>?;
       LoggerService.debug('Processing service data');
       final serviceData = json['service'] as Map<String, dynamic>?;
-      if (serviceData == null) {
-        LoggerService.error('Service data is null for job ${json['id']}');
-        throw Exception('Service data is required but was null');
-      }
 
       // Create homeowner with profile if data exists
       Homeowner? homeowner;
       if (homeownerData != null && homeownerData['profile'] != null) {
         LoggerService.debug('Creating homeowner profile');
-        final profile =
-            Profile.fromJson(homeownerData['profile'] as Map<String, dynamic>);
-        homeowner = Homeowner.fromJson(homeownerData, profile: profile);
+        try {
+          final profile = Profile.fromJson(
+              homeownerData['profile'] as Map<String, dynamic>);
+          homeowner = Homeowner.fromJson(homeownerData, profile: profile);
+        } catch (e, stackTrace) {
+          LoggerService.error(
+              'Error creating homeowner/profile', e, stackTrace);
+          // Continue without homeowner data
+        }
+      }
+
+      // Handle missing service data
+      BaseService? service;
+      if (serviceData != null) {
+        try {
+          service = BaseService.fromJson(serviceData);
+        } catch (e, stackTrace) {
+          LoggerService.error('Error creating service', e, stackTrace);
+          // Create a placeholder service if needed
+          service = BaseService.fromJson({
+            'id': 'placeholder',
+            'name': 'Unknown Service',
+            'description': 'Service details unavailable',
+            'base_price': 0.0,
+            'category_id': 'placeholder',
+            'created_at': DateTime.now().toIso8601String(),
+          });
+        }
+      } else {
+        LoggerService.error('Service data is null for job ${json['id']}');
+        // Create a placeholder service
+        service = BaseService.fromJson({
+          'id': 'placeholder',
+          'name': 'Unknown Service',
+          'description': 'Service details unavailable',
+          'base_price': 0.0,
+          'category_id': 'placeholder',
+          'created_at': DateTime.now().toIso8601String(),
+        });
       }
 
       LoggerService.debug('Creating Job object');
@@ -153,7 +185,7 @@ class Job {
         radiusKm: json['radius_km'] != null
             ? (json['radius_km'] as num).toDouble()
             : null,
-        service: BaseService.fromJson(serviceData),
+        service: service,
         notes: json['notes'] as String?,
         maintenance_due_date: json['maintenance_due_date'] != null
             ? DateTime.parse(json['maintenance_due_date'] as String)
@@ -305,9 +337,9 @@ class Job {
   }
 
   // Computed getters
-  bool get isPending => status.toLowerCase() == 'pending';
-  bool get isAccepted => status.toLowerCase() == 'accepted';
-  bool get isInProgress => status.toLowerCase() == 'in_progress';
-  bool get isCompleted => status.toLowerCase() == 'completed';
-  bool get isCancelled => status.toLowerCase() == 'cancelled';
+  bool get isAwaitingAcceptance => status == STATUS_AWAITING_ACCEPTANCE;
+  bool get isScheduled => status == STATUS_SCHEDULED;
+  bool get isStarted => status == STATUS_STARTED;
+  bool get isCompleted => status == STATUS_COMPLETED;
+  bool get isCancelled => status == STATUS_CANCELLED;
 }
