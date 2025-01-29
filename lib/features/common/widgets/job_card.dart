@@ -152,16 +152,16 @@ class JobCard extends StatelessWidget {
   }
 
   Color _getStatusColor(ThemeData theme) {
-    switch (job.status.toLowerCase()) {
-      case 'pending':
+    switch (job.status) {
+      case Job.STATUS_AWAITING_ACCEPTANCE:
         return theme.colorScheme.tertiary;
-      case 'accepted':
+      case Job.STATUS_SCHEDULED:
         return theme.colorScheme.primary;
-      case 'in_progress':
+      case Job.STATUS_STARTED:
         return theme.colorScheme.secondary;
-      case 'completed':
+      case Job.STATUS_COMPLETED:
         return Colors.green;
-      case 'cancelled':
+      case Job.STATUS_CANCELLED:
         return theme.colorScheme.error;
       default:
         return theme.colorScheme.primary;
