@@ -138,7 +138,7 @@ class HomeownerProvider extends ChangeNotifier {
           .insert({
             'title': title,
             'description': description,
-            'status': 'pending',
+            'status': Job.STATUS_AWAITING_ACCEPTANCE,
             'date': date.toIso8601String(),
             'homeowner_id': homeownerId,
             'professional_id': professionalId,
