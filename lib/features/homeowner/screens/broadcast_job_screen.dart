@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/base_service_model.dart';
 import '../../../providers/database_provider.dart';
+import '../../../core/services/logger_service.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import 'broadcast_request_map_screen.dart';
 
