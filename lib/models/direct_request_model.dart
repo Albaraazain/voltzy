@@ -6,13 +6,11 @@ import 'profile_model.dart';
 
 @immutable
 class DirectRequest {
-  static const String STATUS_PENDING = 'pending';
-  static const String STATUS_ACCEPTED = 'accepted';
-  static const String STATUS_DECLINED = 'declined';
-  static const String STATUS_CANCELLED = 'cancelled';
-  static const String STATUS_RESCHEDULED = 'rescheduled';
-  static const String STATUS_IN_PROGRESS = 'in_progress';
+  static const String STATUS_AWAITING_ACCEPTANCE = 'awaiting_acceptance';
+  static const String STATUS_SCHEDULED = 'scheduled';
+  static const String STATUS_STARTED = 'started';
   static const String STATUS_COMPLETED = 'completed';
+  static const String STATUS_CANCELLED = 'cancelled';
 
   final String id;
   final String status;
@@ -31,20 +29,16 @@ class DirectRequest {
 
   String get statusText {
     switch (status) {
-      case STATUS_PENDING:
-        return 'Pending';
-      case STATUS_ACCEPTED:
-        return 'Accepted';
-      case STATUS_DECLINED:
-        return 'Declined';
-      case STATUS_CANCELLED:
-        return 'Cancelled';
-      case STATUS_RESCHEDULED:
-        return 'Rescheduled';
-      case STATUS_IN_PROGRESS:
-        return 'In Progress';
+      case STATUS_AWAITING_ACCEPTANCE:
+        return 'Awaiting Acceptance';
+      case STATUS_SCHEDULED:
+        return 'Scheduled';
+      case STATUS_STARTED:
+        return 'Started';
       case STATUS_COMPLETED:
         return 'Completed';
+      case STATUS_CANCELLED:
+        return 'Cancelled';
       default:
         return 'Unknown';
     }
