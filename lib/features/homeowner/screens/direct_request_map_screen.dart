@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../../models/professional_model.dart';
-import '../../../providers/database_provider.dart';
-import '../../../core/services/location_service.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../../core/services/location_service.dart';
+import '../../../providers/database_provider.dart';
+import '../../../models/professional_model.dart';
 
 class DirectRequestMapScreen extends StatefulWidget {
   final String service;
@@ -30,147 +31,79 @@ class DirectRequestMapScreen extends StatefulWidget {
 }
 
 class _DirectRequestMapScreenState extends State<DirectRequestMapScreen> {
-  GoogleMapController? _mapController;
-  Set<Marker> _markers = {};
-  List<Professional> _professionals = [];
+  late GoogleMapController _mapController;
+  late Position _currentPosition;
+  late List<Professional> _professionals;
+  late LatLng _selectedLocation;
   bool _isLoading = false;
-  LatLng? _selectedLocation;
 
   @override
   void initState() {
     super.initState();
-    _loadProfessionals();
+    _loadInitialData();
   }
 
-  Future<void> _loadProfessionals() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoading = true);
 
     try {
-      await context.read<DatabaseProvider>().loadProfessionals();
-      final professionals = context.read<DatabaseProvider>().professionals;
+      // Get current location
+      _currentPosition = await LocationService.getCurrentLocation();
 
-      setState(() {
-        _professionals = professionals;
-        _markers = professionals.map((professional) {
-          final lat = professional.locationLat ?? 0.0;
-          final lng = professional.locationLng ?? 0.0;
-          final position = LatLng(lat, lng);
+      // Load professionals
+      final dbProvider = Provider.of<DatabaseProvider>(context, listen: false);
+      await dbProvider.loadProfessionals();
+      _professionals = dbProvider.professionals;
 
-          return Marker(
-            markerId: MarkerId(professional.id),
-            position: position,
-            infoWindow: InfoWindow(
-              title: professional.profile?.name ?? 'Unknown Professional',
-              snippet: 'Tap to view profile',
-            ),
-            onTap: () => _onMarkerTapped(professional),
-          );
-        }).toSet();
-      });
+      // Set initial map position
+      _selectedLocation = LatLng(
+        _currentPosition.latitude,
+        _currentPosition.longitude,
+      );
+
+      setState(() => _isLoading = false);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading professionals: $e')),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+      setState(() => _isLoading = false);
     }
   }
 
-  void _onMarkerTapped(Professional professional) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              professional.profile?.name ?? 'Unknown Professional',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Hourly Rate: \$${professional.hourlyRate}/hr',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _selectProfessional(professional);
-                  },
-                  child: const Text('Select'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
   }
 
-  void _selectProfessional(Professional professional) {
-    Navigator.pushNamed(
-      context,
-      '/homeowner/direct-request-job',
-      arguments: {
-        'professional': professional,
-        'service': widget.service,
-        'maxBudgetPerHour': widget.maxBudgetPerHour,
-        'hours': widget.hours,
-        'scheduledDate': widget.scheduledDate,
-      },
-    );
+  void _onLocationSelected(LatLng location) {
+    setState(() {
+      _selectedLocation = location;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select Professional'),
-      ),
-      body: Stack(
-        children: [
-          GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: LatLng(0, 0),
-              zoom: 12,
+      appBar: AppBar(title: const Text('Select Location')),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : GoogleMap(
+              onMapCreated: _onMapCreated,
+              initialCameraPosition: CameraPosition(
+                target: _selectedLocation,
+                zoom: 14.0,
+              ),
+              onTap: _onLocationSelected,
+              markers: {
+                Marker(
+                  markerId: const MarkerId('selected_location'),
+                  position: _selectedLocation,
+                ),
+              },
             ),
-            onMapCreated: (controller) {
-              _mapController = controller;
-              LocationService.getCurrentLocation().then((position) {
-                if (mounted) {
-                  controller.animateCamera(
-                    CameraUpdate.newLatLng(
-                      LatLng(position.latitude, position.longitude),
-                    ),
-                  );
-                }
-              });
-            },
-            markers: _markers,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
-          ),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.pop(context, _selectedLocation),
+        child: const Icon(Icons.check),
       ),
     );
   }
