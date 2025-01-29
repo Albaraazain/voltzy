@@ -3,8 +3,23 @@ import '../../../models/reschedule_request_model.dart';
 import '../../../providers/schedule_provider.dart';
 import 'package:provider/provider.dart';
 
-class RescheduleManagementScreen extends StatelessWidget {
+class RescheduleManagementScreen extends StatefulWidget {
   const RescheduleManagementScreen({super.key});
+
+  @override
+  State<RescheduleManagementScreen> createState() =>
+      _RescheduleManagementScreenState();
+}
+
+class _RescheduleManagementScreenState
+    extends State<RescheduleManagementScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ScheduleProvider>().loadRescheduleRequests();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +29,7 @@ class RescheduleManagementScreen extends StatelessWidget {
       ),
       body: Consumer<ScheduleProvider>(
         builder: (context, provider, child) {
-          if (provider.loading) {
+          if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -78,7 +93,8 @@ class RescheduleManagementScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (request.status == RescheduleRequest.STATUS_PENDING) ...[
+                if (request.status ==
+                    RescheduleRequest.STATUS_AWAITING_ACCEPTANCE) ...[
                   TextButton(
                     onPressed: () => _handleAccept(context, request),
                     child: const Text('Accept'),
@@ -105,7 +121,7 @@ class RescheduleManagementScreen extends StatelessWidget {
     try {
       await context.read<ScheduleProvider>().respondToRescheduleRequest(
             requestId: request.id,
-            status: RescheduleRequest.STATUS_ACCEPTED,
+            status: RescheduleRequest.STATUS_SCHEDULED,
           );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -126,7 +142,7 @@ class RescheduleManagementScreen extends StatelessWidget {
     try {
       await context.read<ScheduleProvider>().respondToRescheduleRequest(
             requestId: request.id,
-            status: RescheduleRequest.STATUS_DECLINED,
+            status: RescheduleRequest.STATUS_CANCELLED,
           );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
