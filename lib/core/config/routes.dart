@@ -26,6 +26,7 @@ import '../../features/professional/screens/professional_services_management_scr
 import '../../features/homeowner/screens/set_location_screen.dart';
 import '../../features/professional/screens/client_profile_notes_screen.dart';
 import '../../models/homeowner_model.dart';
+import '../../features/professional/screens/job_requests_screen.dart';
 
 class AppRoutes {
   // Route names
@@ -40,6 +41,7 @@ class AppRoutes {
   static const String professionalServiceDetails =
       '/professional/service-details';
   static const String clientProfileNotes = '/professional/client-notes';
+  static const String professionalJobRequests = '/professional/job-requests';
 
   static Map<String, Widget Function(BuildContext)> getRoutes() {
     return {
@@ -107,6 +109,10 @@ class AppRoutes {
           initialLat: args['initialLat']!,
           initialLng: args['initialLng']!,
         );
+      },
+      professionalJobRequests: (context) {
+        LoggerService.debug('🔄 Navigating to Job Requests Screen');
+        return const JobRequestsScreen();
       },
     };
   }
