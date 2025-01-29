@@ -1,8 +1,7 @@
-
 class RescheduleRequest {
-  static const String STATUS_PENDING = 'PENDING';
-  static const String STATUS_ACCEPTED = 'ACCEPTED';
-  static const String STATUS_DECLINED = 'DECLINED';
+  static const String STATUS_AWAITING_ACCEPTANCE = 'awaiting_acceptance';
+  static const String STATUS_SCHEDULED = 'scheduled';
+  static const String STATUS_CANCELLED = 'cancelled';
 
   final String id;
   final String jobId;
