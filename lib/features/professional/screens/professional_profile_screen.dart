@@ -246,8 +246,33 @@ class ReviewCard extends StatelessWidget {
   }
 }
 
-class ProfessionalProfileScreen extends StatelessWidget {
+class ProfessionalProfileScreen extends StatefulWidget {
   const ProfessionalProfileScreen({super.key});
+
+  @override
+  State<ProfessionalProfileScreen> createState() =>
+      _ProfessionalProfileScreenState();
+}
+
+class _ProfessionalProfileScreenState extends State<ProfessionalProfileScreen> {
+  Future<void> _loadProfileData() async {
+    final dbProvider = Provider.of<DatabaseProvider>(context, listen: false);
+    await dbProvider.refreshProfessionalData();
+  }
+
+  void _handleEditProfile() async {
+    final result = await Navigator.pushNamed(
+      context,
+      '/professional/edit-profile',
+    );
+
+    if (result == true) {
+      setState(() {
+        // Refresh the profile data
+        _loadProfileData();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -261,7 +286,6 @@ class ProfessionalProfileScreen extends StatelessWidget {
             }
 
             final professional = dbProvider.currentProfessional!;
-            final profile = professional.profile;
             final services = professional.services;
 
             return SingleChildScrollView(
