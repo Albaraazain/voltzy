@@ -94,11 +94,11 @@ class JobCard extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: status == 'In Progress'
+                          color: status == Job.STATUS_STARTED
                               ? Colors.pink.shade100
-                              : status == 'Scheduled'
+                              : status == Job.STATUS_SCHEDULED
                                   ? Colors.amber.shade100
-                                  : status == 'Completed'
+                                  : status == Job.STATUS_COMPLETED
                                       ? Colors.green.shade100
                                       : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(20),
@@ -107,11 +107,11 @@ class JobCard extends StatelessWidget {
                           status,
                           style: TextStyle(
                             fontSize: 12,
-                            color: status == 'In Progress'
+                            color: status == Job.STATUS_STARTED
                                 ? Colors.pink.shade700
-                                : status == 'Scheduled'
+                                : status == Job.STATUS_SCHEDULED
                                     ? Colors.amber.shade700
-                                    : status == 'Completed'
+                                    : status == Job.STATUS_COMPLETED
                                         ? Colors.green.shade700
                                         : Colors.grey.shade600,
                           ),
@@ -391,12 +391,16 @@ class _HomeownerJobsScreenState extends State<HomeownerJobsScreen> {
                       );
                     }
 
+                    final completedJobs = jobProvider.jobs
+                        .where((job) => job.status == Job.STATUS_COMPLETED)
+                        .toList();
+
                     final currentJobs = jobProvider.jobs
-                        .where((job) =>
-                            job.status == 'in_progress' ||
-                            job.status == 'scheduled' ||
-                            job.status == 'awaiting_acceptance' ||
-                            job.status == 'accepted')
+                        .where((job) => _showActionButtons(job))
+                        .toList();
+
+                    final scheduledJobs = jobProvider.jobs
+                        .where((job) => job.status == Job.STATUS_SCHEDULED)
                         .toList();
 
                     if (currentJobs.isEmpty) {
@@ -441,7 +445,7 @@ class _HomeownerJobsScreenState extends State<HomeownerJobsScreen> {
                 Consumer<JobProvider>(
                   builder: (context, jobProvider, child) {
                     final pastJobs = jobProvider.jobs
-                        .where((job) => job.status == 'completed')
+                        .where((job) => job.status == Job.STATUS_COMPLETED)
                         .toList();
 
                     if (pastJobs.isEmpty) {
@@ -642,14 +646,24 @@ class _HomeownerJobsScreenState extends State<HomeownerJobsScreen> {
 
   String _getStatusText(String status) {
     switch (status) {
-      case 'in_progress':
-        return 'In Progress';
-      case 'scheduled':
+      case Job.STATUS_AWAITING_ACCEPTANCE:
+        return 'Awaiting Acceptance';
+      case Job.STATUS_SCHEDULED:
         return 'Scheduled';
-      case 'completed':
+      case Job.STATUS_STARTED:
+        return 'In Progress';
+      case Job.STATUS_COMPLETED:
         return 'Completed';
+      case Job.STATUS_CANCELLED:
+        return 'Cancelled';
       default:
         return status;
     }
+  }
+
+  bool _showActionButtons(Job job) {
+    return job.status == Job.STATUS_SCHEDULED ||
+        job.status == Job.STATUS_STARTED ||
+        job.status == Job.STATUS_AWAITING_ACCEPTANCE;
   }
 }
