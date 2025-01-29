@@ -8,6 +8,7 @@ import 'professional_home_screen.dart';
 import 'professional_calendar_screen.dart';
 import 'professional_messages_screen.dart';
 import 'professional_profile_screen.dart';
+import 'job_requests_screen.dart';
 
 class ProfessionalMainScreen extends StatefulWidget {
   const ProfessionalMainScreen({super.key});
@@ -21,6 +22,7 @@ class _ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
 
   final List<Widget> _screens = [
     const ProfessionalHomeScreen(),
+    const JobRequestsScreen(),
     const ProfessionalCalendarScreen(),
     const ProfessionalMessagesScreen(),
     const ProfessionalProfileScreen(),
@@ -105,7 +107,7 @@ class _ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
                                 .setIndex(0);
                           }),
                           _buildAnimatedMenuItem(
-                              Icons.calendar_today, 'Schedule', animation, 1,
+                              Icons.work_outline, 'Job Requests', animation, 1,
                               onTap: () {
                             Navigator.pop(context);
                             context
@@ -113,7 +115,7 @@ class _ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
                                 .setIndex(1);
                           }),
                           _buildAnimatedMenuItem(
-                              Icons.message_outlined, 'Messages', animation, 2,
+                              Icons.calendar_today, 'Schedule', animation, 2,
                               onTap: () {
                             Navigator.pop(context);
                             context
@@ -121,42 +123,50 @@ class _ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
                                 .setIndex(2);
                           }),
                           _buildAnimatedMenuItem(
-                              Icons.person_outline, 'Profile', animation, 3,
+                              Icons.message_outlined, 'Messages', animation, 3,
                               onTap: () {
                             Navigator.pop(context);
                             context
                                 .read<BottomNavigationProvider>()
                                 .setIndex(3);
                           }),
+                          _buildAnimatedMenuItem(
+                              Icons.person_outline, 'Profile', animation, 4,
+                              onTap: () {
+                            Navigator.pop(context);
+                            context
+                                .read<BottomNavigationProvider>()
+                                .setIndex(4);
+                          }),
                           const Divider(color: Colors.white24, height: 32),
                           _buildAnimatedMenuItem(
-                              Icons.work_outline, 'My Services', animation, 4,
+                              Icons.work_outline, 'My Services', animation, 5,
                               onTap: () {
                             Navigator.pop(context);
                             Navigator.pushNamed(
                                 context, AppRoutes.professionalServices);
                           }),
                           _buildAnimatedMenuItem(
-                              Icons.payments_outlined, 'Earnings', animation, 5,
+                              Icons.payments_outlined, 'Earnings', animation, 6,
                               onTap: () {
                             Navigator.pop(context);
                             Navigator.pushNamed(
                                 context, AppRoutes.professionalEarnings);
                           }),
                           _buildAnimatedMenuItem(
-                              Icons.settings_outlined, 'Settings', animation, 6,
+                              Icons.settings_outlined, 'Settings', animation, 7,
                               onTap: () {
                             Navigator.pop(context);
                             // TODO: Navigate to settings screen
                           }),
                           _buildAnimatedMenuItem(Icons.help_outline,
-                              'Help & Support', animation, 7, onTap: () {
+                              'Help & Support', animation, 8, onTap: () {
                             Navigator.pop(context);
                             // TODO: Navigate to help screen
                           }),
                           const Spacer(),
                           _buildAnimatedMenuItem(
-                              Icons.logout, 'Sign Out', animation, 8,
+                              Icons.logout, 'Sign Out', animation, 9,
                               onTap: () {
                             Navigator.pop(context);
                             context.read<AuthProvider>().signOut();
@@ -243,6 +253,10 @@ class _ProfessionalMainScreenState extends State<ProfessionalMainScreen> {
               FlashyTabBarItem(
                 icon: const Icon(Icons.home_outlined),
                 title: const Text('Home'),
+              ),
+              FlashyTabBarItem(
+                icon: const Icon(Icons.work_outline),
+                title: const Text('Requests'),
               ),
               FlashyTabBarItem(
                 icon: const Icon(Icons.calendar_today),
