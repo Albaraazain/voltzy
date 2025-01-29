@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/job_model.dart';
 import '../core/services/logger_service.dart';
 import '../core/config/supabase_config.dart';
+import '../providers/database_provider.dart';
 
 class JobStatusUpdateException implements Exception {
   final String code;
@@ -19,6 +21,7 @@ class JobStatusUpdateException implements Exception {
 
 class JobProvider extends ChangeNotifier {
   final SupabaseClient _client = SupabaseConfig.client;
+  final DatabaseProvider _databaseProvider;
   List<Job> _jobs = [];
   bool _isLoading = false;
   String? _error;
@@ -36,7 +39,7 @@ class JobProvider extends ChangeNotifier {
   // TODO: Add job review system (Requires: Review service)
   // TODO: Add dispute resolution system (Requires: Support system)
 
-  JobProvider() {
+  JobProvider(this._databaseProvider) {
     _initializeRealtime();
   }
 
@@ -107,9 +110,24 @@ class JobProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      LoggerService.debug('🔄 Starting loadJobs with status: $status');
+
+      final currentProfessional = _databaseProvider.currentProfessional;
+      LoggerService.debug(
+          '👤 Current professional: ${currentProfessional?.profile?.name ?? 'None'} (${currentProfessional?.id})');
+      LoggerService.debug(
+          '📍 Professional location: ${currentProfessional?.locationLat}, ${currentProfessional?.locationLng}');
+
+      final currentProfessionalId = currentProfessional?.id;
+      LoggerService.debug('🆔 Current professional ID: $currentProfessionalId');
+
       var query = _client.from('jobs').select('''
         *,
-        service:services!jobs_service_id_fkey (*),
+        service:services (*),
+        homeowner:homeowners!jobs_homeowner_id_fkey (
+          *,
+          profile:profiles!homeowners_id_fkey (*)
+        ),
         job_professional_requests (
           professional:professionals (
             *,
@@ -118,50 +136,77 @@ class JobProvider extends ChangeNotifier {
         )
       ''');
 
-      if (status != null && status != 'all') {
+      LoggerService.debug('🔍 Building query for status: $status');
+
+      // For professionals, show relevant jobs based on status
+      if (status == Job.STATUS_AWAITING_ACCEPTANCE) {
+        LoggerService.debug('📋 Loading pending/awaiting acceptance jobs');
+        // For job requests, show all awaiting jobs that match their services
+        query = query
+            .eq('status', Job.STATUS_AWAITING_ACCEPTANCE)
+            .filter('professional_id', 'is', null); // Show unassigned jobs only
+
+        LoggerService.debug(
+            '🔍 Query filters: status=${Job.STATUS_AWAITING_ACCEPTANCE}, professional_id=null');
+      } else if (status == Job.STATUS_SCHEDULED) {
+        LoggerService.debug('📅 Loading scheduled/accepted jobs');
+        // For scheduled jobs, show only assigned jobs
+        if (currentProfessionalId != null) {
+          query = query
+              .eq('status', Job.STATUS_SCHEDULED)
+              .eq('professional_id', currentProfessionalId);
+
+          LoggerService.debug(
+              '🔍 Query filters: status=${Job.STATUS_SCHEDULED}, professional_id=$currentProfessionalId');
+        }
+      } else if (status != null && status != 'all') {
+        LoggerService.debug('🔍 Loading jobs with specific status: $status');
         query = query.eq('status', status);
       }
 
-      final response = await query.order('created_at', ascending: false);
-      LoggerService.debug('Raw response from database: $response');
+      final response = await query;
+      LoggerService.debug('📊 Raw database response: $response');
+      LoggerService.debug('📊 Number of jobs returned: ${response.length}');
 
-      // After getting jobs, fetch homeowner profiles
-      final homeownerIds =
-          response.map((job) => job['homeowner_id'] as String).toSet().toList();
-      final homeownersResponse = await _client
-          .from('homeowners')
-          .select('*, profile:profiles(*)')
-          .inFilter('id', homeownerIds);
-
-      // Create a map of homeowner data
-      final homeownerMap = {
-        for (var h in homeownersResponse) h['id'] as String: h
-      };
-
-      _jobs = response.map<Job>((json) {
-        try {
-          LoggerService.debug('Processing job with ID: ${json['id']}');
-          LoggerService.debug('Service data: ${json['service']}');
-
-          // Add homeowner data to the job JSON
-          final homeownerId = json['homeowner_id'] as String;
-          json['homeowner'] = homeownerMap[homeownerId];
-
-          return Job.fromJson(json);
-        } catch (e, stackTrace) {
-          LoggerService.error(
-              'Error processing job ${json['id']}: $e', e, stackTrace);
-          rethrow;
-        }
+      final jobs = response.map((row) {
+        final job = Job.fromJson(row);
+        LoggerService.debug('📋 Processing job: ${job.id}');
+        LoggerService.debug('  - Title: ${job.title}');
+        LoggerService.debug('  - Status: ${job.status}');
+        LoggerService.debug('  - Professional ID: ${job.professionalId}');
+        LoggerService.debug(
+            '  - Location: ${job.locationLat}, ${job.locationLng}');
+        return job;
       }).toList();
+
+      LoggerService.debug('✅ Returning ${jobs.length} jobs');
+      _jobs = jobs;
     } catch (e, stackTrace) {
       _error = e.toString();
-      LoggerService.error('Error loading jobs', e, stackTrace);
+      LoggerService.error('❌ Error loading jobs', e, stackTrace);
       rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
+    const double earthRadius = 6371; // Radius of the earth in km
+    final double dLat = _degreesToRadians(lat2 - lat1);
+    final double dLon = _degreesToRadians(lon2 - lon1);
+    final double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degreesToRadians(lat1)) *
+            cos(_degreesToRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  double _degreesToRadians(double degrees) {
+    return degrees * pi / 180;
   }
 
   Future<Job> createJob({
