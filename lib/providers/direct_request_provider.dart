@@ -13,15 +13,16 @@ class DirectRequestProvider extends ChangeNotifier {
   String? get error => _error;
 
   List<DirectRequest> get pendingRequests => _requests
-      .where((request) => request.status == DirectRequest.STATUS_PENDING)
+      .where((request) =>
+          request.status == DirectRequest.STATUS_AWAITING_ACCEPTANCE)
       .toList();
 
   List<DirectRequest> get acceptedRequests => _requests
-      .where((request) => request.status == DirectRequest.STATUS_ACCEPTED)
+      .where((request) => request.status == DirectRequest.STATUS_SCHEDULED)
       .toList();
 
   List<DirectRequest> get inProgressRequests => _requests
-      .where((request) => request.status == DirectRequest.STATUS_IN_PROGRESS)
+      .where((request) => request.status == DirectRequest.STATUS_STARTED)
       .toList();
 
   List<DirectRequest> get completedRequests => _requests
@@ -33,7 +34,7 @@ class DirectRequestProvider extends ChangeNotifier {
       .toList();
 
   List<DirectRequest> get declinedRequests => _requests
-      .where((request) => request.status == DirectRequest.STATUS_DECLINED)
+      .where((request) => request.status == DirectRequest.STATUS_CANCELLED)
       .toList();
 
   Future<void> loadProfessionalRequests() async {
@@ -124,7 +125,7 @@ class DirectRequestProvider extends ChangeNotifier {
         'description': description,
         'preferred_date': preferredDate.toIso8601String(),
         'preferred_time': preferredTime,
-        'status': DirectRequest.STATUS_PENDING,
+        'status': DirectRequest.STATUS_AWAITING_ACCEPTANCE,
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       }).select('''
@@ -151,18 +152,28 @@ class DirectRequestProvider extends ChangeNotifier {
   }
 
   Future<void> acceptRequest(String requestId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
     try {
-      await Supabase.instance.client.from('direct_requests').update(
-          {'status': DirectRequest.STATUS_ACCEPTED}).eq('id', requestId);
+      _isLoading = true;
+      notifyListeners();
 
-      await _refreshRequest(requestId);
+      final request = _requests.firstWhere((r) => r.id == requestId);
+      if (request.status != DirectRequest.STATUS_AWAITING_ACCEPTANCE) {
+        throw Exception('Request cannot be accepted');
+      }
+
+      await Supabase.instance.client.from('direct_requests').update({
+        'status': DirectRequest.STATUS_SCHEDULED,
+      }).eq('id', requestId);
+
+      // Update local state
+      final index = _requests.indexWhere((r) => r.id == requestId);
+      _requests[index] = _requests[index].copyWith(
+        status: DirectRequest.STATUS_SCHEDULED,
+      );
+
+      _error = null;
     } catch (e) {
       _error = e.toString();
-      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -170,39 +181,59 @@ class DirectRequestProvider extends ChangeNotifier {
   }
 
   Future<void> declineRequest(String requestId, String reason) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
     try {
+      _isLoading = true;
+      notifyListeners();
+
+      final request = _requests.firstWhere((r) => r.id == requestId);
+      if (request.status != DirectRequest.STATUS_AWAITING_ACCEPTANCE) {
+        throw Exception('Request cannot be declined');
+      }
+
       await Supabase.instance.client.from('direct_requests').update({
-        'status': DirectRequest.STATUS_DECLINED,
+        'status': DirectRequest.STATUS_CANCELLED,
         'decline_reason': reason,
       }).eq('id', requestId);
 
-      await _refreshRequest(requestId);
+      // Update local state
+      final index = _requests.indexWhere((r) => r.id == requestId);
+      _requests[index] = _requests[index].copyWith(
+        status: DirectRequest.STATUS_CANCELLED,
+        declineReason: reason,
+      );
+
+      _error = null;
     } catch (e) {
       _error = e.toString();
-      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> startService(String requestId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+  Future<void> startRequest(String requestId) async {
     try {
-      await Supabase.instance.client.from('direct_requests').update(
-          {'status': DirectRequest.STATUS_IN_PROGRESS}).eq('id', requestId);
+      _isLoading = true;
+      notifyListeners();
 
-      await _refreshRequest(requestId);
+      final request = _requests.firstWhere((r) => r.id == requestId);
+      if (request.status != DirectRequest.STATUS_SCHEDULED) {
+        throw Exception('Request cannot be started');
+      }
+
+      await Supabase.instance.client.from('direct_requests').update({
+        'status': DirectRequest.STATUS_STARTED,
+      }).eq('id', requestId);
+
+      // Update local state
+      final index = _requests.indexWhere((r) => r.id == requestId);
+      _requests[index] = _requests[index].copyWith(
+        status: DirectRequest.STATUS_STARTED,
+      );
+
+      _error = null;
     } catch (e) {
       _error = e.toString();
-      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -258,16 +289,52 @@ class DirectRequestProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await Supabase.instance.client.from('direct_requests').update({
-        'status': DirectRequest.STATUS_RESCHEDULED,
-        'alternative_date': alternativeDate.toIso8601String(),
-        'alternative_time': alternativeTime,
-        'alternative_message': alternativeMessage,
-      }).eq('id', requestId);
+      final response = await Supabase.instance.client
+          .from('direct_requests')
+          .update({
+            'status': DirectRequest.STATUS_AWAITING_ACCEPTANCE,
+            'alternative_date': alternativeDate.toIso8601String(),
+            'alternative_time': alternativeTime,
+            'alternative_message': alternativeMessage,
+          })
+          .eq('id', requestId)
+          .select('''
+            *,
+            homeowner:homeowner_id(
+              *,
+              profile:profiles (*)
+            ),
+            professional:professional_id(
+              *,
+              profile:profiles (*)
+            )
+          ''')
+          .single();
 
-      await _refreshRequest(requestId);
+      if (response['status'] == DirectRequest.STATUS_SCHEDULED) {
+        // Create job when request is accepted
+        final request = DirectRequest.fromJson(response);
+        await Supabase.instance.client.from('jobs').insert({
+          'homeowner_id': request.homeownerId,
+          'professional_id': request.professionalId,
+          'title': 'Electrical Service',
+          'description': request.message,
+          'status': DirectRequest.STATUS_SCHEDULED,
+          'date': DateTime.parse(
+                  '${request.date.toIso8601String().split('T')[0]}T${request.time}')
+              .toIso8601String(),
+          'price': 0.00, // Price will be set by professional
+        });
+      }
+
+      final index = _requests.indexWhere((r) => r.id == requestId);
+      if (index != -1) {
+        _requests[index] = DirectRequest.fromJson(response);
+      }
     } catch (e) {
       _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
       rethrow;
     } finally {
       _isLoading = false;
@@ -339,7 +406,7 @@ class DirectRequestProvider extends ChangeNotifier {
             )
           ''').single();
 
-      if (status == DirectRequest.STATUS_ACCEPTED) {
+      if (status == DirectRequest.STATUS_SCHEDULED) {
         // Create job when request is accepted
         final request = DirectRequest.fromJson(response);
         await Supabase.instance.client.from('jobs').insert({
@@ -347,7 +414,7 @@ class DirectRequestProvider extends ChangeNotifier {
           'professional_id': request.professionalId,
           'title': 'Electrical Service',
           'description': request.message,
-          'status': 'ACCEPTED',
+          'status': DirectRequest.STATUS_SCHEDULED,
           'date': DateTime.parse(
                   '${request.date.toIso8601String().split('T')[0]}T${request.time}')
               .toIso8601String(),
@@ -376,15 +443,16 @@ class DirectRequestProvider extends ChangeNotifier {
     required String alternativeTime,
     String? message,
   }) async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
 
+    try {
       final response = await Supabase.instance.client
           .from('direct_requests')
           .update({
-            'alternative_date': alternativeDate.toIso8601String().split('T')[0],
+            'status': DirectRequest.STATUS_AWAITING_ACCEPTANCE,
+            'alternative_date': alternativeDate.toIso8601String(),
             'alternative_time': alternativeTime,
             'alternative_message': message,
           })
@@ -481,6 +549,96 @@ class DirectRequestProvider extends ChangeNotifier {
     final index = _requests.indexWhere((request) => request.id == requestId);
     if (index != -1) {
       _requests[index] = updatedRequest;
+      notifyListeners();
+    }
+  }
+
+  Future<void> checkRequestStatus(String requestId) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final request = _requests.firstWhere((r) => r.id == requestId);
+      if (request.status != DirectRequest.STATUS_AWAITING_ACCEPTANCE) {
+        throw Exception('Request status cannot be checked');
+      }
+
+      // Update local state
+      final index = _requests.indexWhere((r) => r.id == requestId);
+      _requests[index] = _requests[index].copyWith(
+        status: DirectRequest.STATUS_AWAITING_ACCEPTANCE,
+      );
+
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> rescheduleRequest(
+      String requestId, DateTime newDate, String newTime) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final request = _requests.firstWhere((r) => r.id == requestId);
+      if (request.status != DirectRequest.STATUS_AWAITING_ACCEPTANCE) {
+        throw Exception('Request cannot be rescheduled');
+      }
+
+      await Supabase.instance.client.from('direct_requests').update({
+        'preferred_date': newDate.toIso8601String(),
+        'preferred_time': newTime,
+        'status': DirectRequest.STATUS_AWAITING_ACCEPTANCE,
+      }).eq('id', requestId);
+
+      // Update local state
+      final index = _requests.indexWhere((r) => r.id == requestId);
+      _requests[index] = _requests[index].copyWith(
+        date: newDate,
+        time: newTime,
+        status: DirectRequest.STATUS_AWAITING_ACCEPTANCE,
+      );
+
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> handleRequestStatus(String requestId, String status) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      if (status == DirectRequest.STATUS_SCHEDULED) {
+        // Handle accepting the request
+        await Supabase.instance.client.from('direct_requests').update(
+            {'status': DirectRequest.STATUS_SCHEDULED}).eq('id', requestId);
+      } else {
+        // Handle other status updates
+        await Supabase.instance.client
+            .from('direct_requests')
+            .update({'status': status}).eq('id', requestId);
+      }
+
+      // Update local state
+      final index = _requests.indexWhere((r) => r.id == requestId);
+      _requests[index] = _requests[index].copyWith(
+        status: status,
+      );
+
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
