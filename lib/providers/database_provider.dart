@@ -183,19 +183,42 @@ class DatabaseProvider with ChangeNotifier {
       LoggerService.debug('🔄 Loading professional data...');
 
       if (_currentProfile?.id == null) {
+        LoggerService.error('❌ No profile ID available');
         throw Exception('No profile ID available');
       }
 
       _currentProfessional =
           await _professionalRepo.getCurrentProfessional(_currentProfile!.id);
 
-      if (_currentProfessional != null) {
-        LoggerService.debug('✅ Professional data loaded successfully');
-        LoggerService.debug(
-            'Services count: ${_currentProfessional!.services.length}');
-      } else {
-        LoggerService.warning('⚠️ No professional data found');
+      if (_currentProfessional == null) {
+        LoggerService.warning(
+            '⚠️ No professional data found, initializing new professional profile');
+        // Initialize the professional profile with default values
+        await _professionalRepo.updateProfessionalProfile(
+          _currentProfile!.id,
+          bio: '',
+          phoneNumber: '',
+          licenseNumber: '',
+          yearsOfExperience: 0,
+          specialties: [],
+          hourlyRate: 0,
+          isAvailable: true,
+        );
+
+        // Reload the professional data
+        _currentProfessional =
+            await _professionalRepo.getCurrentProfessional(_currentProfile!.id);
+        if (_currentProfessional == null) {
+          throw Exception('Failed to initialize professional profile');
+        }
       }
+
+      LoggerService.debug('✅ Professional data loaded successfully');
+      LoggerService.debug(
+          'Services count: ${_currentProfessional!.services.length}');
+      LoggerService.debug('Professional ID: ${_currentProfessional!.id}');
+      LoggerService.debug(
+          'Professional Name: ${_currentProfessional!.profile?.name}');
 
       notifyListeners();
     } catch (e, stackTrace) {
@@ -821,7 +844,7 @@ class DatabaseProvider with ChangeNotifier {
       }
 
       final updateData = {
-        'status': 'scheduled',
+        'status': Job.STATUS_SCHEDULED,
         if (proposedPrice != null) 'price': proposedPrice,
         'verification_details': {
           'accepted_at': DateTime.now().toIso8601String(),
@@ -1305,7 +1328,7 @@ class DatabaseProvider with ChangeNotifier {
   Future<void> confirmBroadcastJob(String jobId, String professionalId) async {
     try {
       await _client.from('jobs').update({
-        'status': 'accepted',
+        'status': Job.STATUS_SCHEDULED,
         'professional_id': professionalId,
       }).eq('id', jobId);
 
