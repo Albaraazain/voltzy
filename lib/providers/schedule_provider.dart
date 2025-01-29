@@ -1,326 +1,163 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/config/supabase_config.dart';
 import '../core/services/logger_service.dart';
-import '../models/working_hours_model.dart' as wh;
+import '../models/job_model.dart';
 import '../models/schedule_slot_model.dart';
 import '../models/reschedule_request_model.dart';
+import 'auth_provider.dart';
 
-class ScheduleProvider extends ChangeNotifier {
-  final SupabaseClient _supabase;
-  String? _currentProfessionalId;
-  List<RescheduleRequest> _rescheduleRequests = [];
-  List<ScheduleSlot> _scheduleSlots = [];
-  bool _loading = false;
+class ScheduleProvider with ChangeNotifier {
+  final AuthProvider _authProvider;
+  late final SupabaseClient _client;
+  bool _isLoading = false;
   String? _error;
+  List<Job> _appointments = [];
+  List<ScheduleSlot> _scheduleSlots = [];
+  List<RescheduleRequest> _rescheduleRequests = [];
 
-  ScheduleProvider(this._supabase);
+  ScheduleProvider(this._authProvider) {
+    _client = SupabaseConfig.client;
+  }
 
-  bool get loading => _loading;
+  bool get isLoading => _isLoading;
   String? get error => _error;
+  List<Job> get appointments => _appointments;
   List<ScheduleSlot> get scheduleSlots => _scheduleSlots;
 
   List<RescheduleRequest> get pendingRescheduleRequests => _rescheduleRequests
-      .where((request) => request.status == RescheduleRequest.STATUS_PENDING)
+      .where((request) =>
+          request.status == RescheduleRequest.STATUS_AWAITING_ACCEPTANCE)
       .toList();
 
   List<RescheduleRequest> get acceptedRescheduleRequests => _rescheduleRequests
-      .where((request) => request.status == RescheduleRequest.STATUS_ACCEPTED)
+      .where((request) => request.status == RescheduleRequest.STATUS_SCHEDULED)
       .toList();
 
   List<RescheduleRequest> get declinedRescheduleRequests => _rescheduleRequests
-      .where((request) => request.status == RescheduleRequest.STATUS_DECLINED)
+      .where((request) => request.status == RescheduleRequest.STATUS_CANCELLED)
       .toList();
 
-  Future<void> setCurrentProfessionalId(String professionalId) async {
-    _currentProfessionalId = professionalId;
-    notifyListeners();
-  }
+  Future<void> loadAppointments({DateTime? date}) async {
+    if (!_authProvider.isAuthenticated) return;
 
-  // Working Hours Methods
-  Future<wh.WorkingHours> loadWorkingHours(String professionalId) async {
     try {
-      _loading = true;
+      _isLoading = true;
       _error = null;
       notifyListeners();
 
-      final response = await _supabase
-          .from('professionals')
-          .select('working_hours')
-          .eq('id', professionalId)
-          .single();
-
-      final workingHours = wh.WorkingHours.fromJson(response['working_hours']);
-      _loading = false;
-      notifyListeners();
-      return workingHours;
-    } catch (e) {
-      _error = e.toString();
-      _loading = false;
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<wh.WorkingHours> updateWorkingHours(
-      String professionalId, Map<String, dynamic> workingHours) async {
-    try {
-      _loading = true;
-      _error = null;
-      notifyListeners();
-
-      final response = await _supabase
-          .from('professionals')
-          .update({'working_hours': workingHours})
-          .eq('id', professionalId)
-          .select('working_hours')
-          .single();
-
-      final updatedWorkingHours =
-          wh.WorkingHours.fromJson(response['working_hours']);
-      _loading = false;
-      notifyListeners();
-      return updatedWorkingHours;
-    } catch (e) {
-      _error = e.toString();
-      _loading = false;
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  // Schedule Slot Methods
-  Future<ScheduleSlot> createScheduleSlot({
-    required String professionalId,
-    required DateTime date,
-    required String startTime,
-    required String endTime,
-    required String status,
-    String? jobId,
-    String? recurringRule,
-  }) async {
-    try {
-      LoggerService.info('Creating schedule slot with parameters:\n'
-          'Professional ID: $professionalId\n'
-          'Date: ${date.toIso8601String().split('T')[0]}\n'
-          'Start Time: $startTime\n'
-          'End Time: $endTime\n'
-          'Status: $status');
-
-      _loading = true;
-      _error = null;
-      notifyListeners();
-
-      final data = {
-        'professional_id': professionalId,
-        'date': date.toIso8601String().split('T')[0],
-        'start_time': startTime,
-        'end_time': endTime,
-        'status': status,
-        'job_id': jobId,
-        'recurring_rule': recurringRule,
-      };
-
-      LoggerService.debug('Inserting data into schedule_slots table: $data');
-
-      final response =
-          await _supabase.from('schedule_slots').insert(data).select().single();
-
-      LoggerService.debug('Database response: $response');
-
-      final scheduleSlot = ScheduleSlot.fromJson(response);
-      _scheduleSlots.add(scheduleSlot);
-
-      LoggerService.info('Schedule slot created successfully:\n'
-          'Slot ID: ${scheduleSlot.id}\n'
-          'Date: ${scheduleSlot.date}\n'
-          'Time: ${scheduleSlot.startTime} - ${scheduleSlot.endTime}');
-
-      _loading = false;
-      notifyListeners();
-      return scheduleSlot;
-    } catch (e, stackTrace) {
-      final errorMsg = e.toString();
-      LoggerService.error(
-        'Failed to create schedule slot',
-        e,
-        stackTrace,
-      );
-
-      if (e is PostgrestException) {
-        LoggerService.error(
-          'PostgreSQL Error Details:\n'
-          'Code: ${e.code}\n'
-          'Message: ${e.message}\n'
-          'Details: ${e.details}\n'
-          'Hint: ${e.hint}',
-        );
+      final professionalId = _authProvider.userId;
+      if (professionalId == null) {
+        throw Exception('No professional ID available');
       }
 
-      _error = errorMsg;
-      _loading = false;
-      notifyListeners();
-      rethrow;
-    }
-  }
+      LoggerService.debug(
+          'Loading appointments for professional: $professionalId');
+      if (date != null) {
+        LoggerService.debug('Filtering by date: ${date.toIso8601String()}');
+      }
 
-  Future<ScheduleSlot> bookSlot({
-    required String slotId,
-    required String homeownerId,
-    required String description,
-  }) async {
-    try {
-      _loading = true;
-      _error = null;
-      notifyListeners();
-
-      // Get the slot details first
-      final slotData = await _supabase
-          .from('schedule_slots')
-          .select()
-          .eq('id', slotId)
-          .single();
-
-      final slot = ScheduleSlot.fromJson(slotData);
-
-      // Delete the existing slot
-      await _supabase.from('schedule_slots').delete().eq('id', slotId);
-
-      // Call the create_booking function with the correct parameters
-      final jobId = await _supabase.rpc('create_booking', params: {
-        'p_professional_id': slot.professionalId,
-        'p_homeowner_id': homeownerId,
-        'p_date': slot.date.toIso8601String().split('T')[0],
-        'p_start_time': slot.startTime,
-        'p_end_time': slot.endTime,
-        'p_description': description,
-      });
-
-      // Get the updated slot
-      final updatedSlotData = await _supabase
-          .from('schedule_slots')
-          .select()
-          .eq('job_id', jobId)
-          .single();
-
-      final updatedSlot = ScheduleSlot.fromJson(updatedSlotData);
-      _loading = false;
-      notifyListeners();
-      return updatedSlot;
-    } catch (e) {
-      _error = e.toString();
-      _loading = false;
-      notifyListeners();
-      rethrow;
-    }
-  }
-
-  Future<List<ScheduleSlot>> getAvailableSlots({
-    required String professionalId,
-    required DateTime date,
-  }) async {
-    try {
-      _loading = true;
-      _error = null;
-      notifyListeners();
-
-      final response = await _supabase
-          .from('schedule_slots')
-          .select()
+      // Build the query
+      final query = _client
+          .from('jobs')
+          .select('''
+            *,
+            homeowner:homeowners!jobs_homeowner_id_fkey (
+              *,
+              profile:profiles (*)
+            ),
+            service:services (*)
+          ''')
           .eq('professional_id', professionalId)
-          .eq('date', date.toIso8601String().split('T')[0])
-          .eq('status', 'AVAILABLE');
+          .inFilter('status', [Job.STATUS_SCHEDULED, Job.STATUS_STARTED]);
 
-      final slots =
-          response.map((json) => ScheduleSlot.fromJson(json)).toList();
-      _loading = false;
+      // Add date filter if provided
+      if (date != null) {
+        final startOfDay = DateTime(date.year, date.month, date.day);
+        final endOfDay = startOfDay.add(const Duration(days: 1));
+        query.gte('date', startOfDay.toIso8601String());
+        query.lt('date', endOfDay.toIso8601String());
+      }
+
+      // Order by date and time
+      query.order('date', ascending: true);
+
+      final response = await query;
+      _appointments = response.map<Job>((job) => Job.fromJson(job)).toList();
+
       notifyListeners();
-      return slots;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to load appointments', e, stackTrace);
       _error = e.toString();
-      _loading = false;
       notifyListeners();
-      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  Future<List<ScheduleSlot>> loadScheduleSlots({
+  Future<void> loadScheduleSlots({
     required String professionalId,
     required DateTime date,
   }) async {
     try {
-      LoggerService.info('Loading schedule slots for:\n'
-          'Professional ID: $professionalId\n'
-          'Date: ${date.toIso8601String().split('T')[0]}');
-
-      _loading = true;
+      _isLoading = true;
       _error = null;
       notifyListeners();
 
-      final response = await _supabase
+      final response = await _client
           .from('schedule_slots')
           .select()
           .eq('professional_id', professionalId)
           .eq('date', date.toIso8601String().split('T')[0]);
 
-      LoggerService.debug('Found ${response.length} slots');
-
       _scheduleSlots = response
           .map<ScheduleSlot>((json) => ScheduleSlot.fromJson(json))
           .toList();
 
-      LoggerService.info('Successfully loaded schedule slots');
-
-      _loading = false;
       notifyListeners();
-      return _scheduleSlots;
     } catch (e, stackTrace) {
-      LoggerService.error(
-        'Failed to load schedule slots',
-        e,
-        stackTrace,
-      );
-
+      LoggerService.error('Failed to load schedule slots', e, stackTrace);
       _error = e.toString();
-      _loading = false;
       notifyListeners();
       rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  Future<void> createRescheduleRequest({
-    required String jobId,
-    required String requestedById,
-    required String requestedByType,
-    required DateTime originalDate,
-    required String originalTime,
-    required DateTime proposedDate,
-    required String proposedTime,
-    String? reason,
-  }) async {
+  Future<void> loadRescheduleRequests() async {
+    if (!_authProvider.isAuthenticated) return;
+
     try {
-      _loading = true;
+      _isLoading = true;
       _error = null;
       notifyListeners();
 
-      await _supabase.from('reschedule_requests').insert({
-        'job_id': jobId,
-        'requested_by_id': requestedById,
-        'requested_by_type': requestedByType,
-        'original_date': originalDate.toIso8601String().split('T')[0],
-        'original_time': originalTime,
-        'proposed_date': proposedDate.toIso8601String().split('T')[0],
-        'proposed_time': proposedTime,
-        'reason': reason,
-        'status': 'PENDING',
-      });
+      final professionalId = _authProvider.userId;
+      if (professionalId == null) {
+        throw Exception('No professional ID available');
+      }
 
-      _loading = false;
+      final response = await _client
+          .from('reschedule_requests')
+          .select('*, job:jobs(id, homeowner_id, professional_id)')
+          .eq('job->professional_id', professionalId);
+
+      _rescheduleRequests = response
+          .map<RescheduleRequest>((json) => RescheduleRequest.fromJson(json))
+          .toList();
+
       notifyListeners();
-    } catch (e) {
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to load reschedule requests', e, stackTrace);
       _error = e.toString();
-      _loading = false;
       notifyListeners();
-      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -329,53 +166,24 @@ class ScheduleProvider extends ChangeNotifier {
     required String status,
   }) async {
     try {
-      _loading = true;
+      _isLoading = true;
       _error = null;
       notifyListeners();
 
-      await _supabase
+      await _client
           .from('reschedule_requests')
           .update({'status': status}).eq('id', requestId);
 
-      await loadRescheduleRequests(
-        userId: _currentProfessionalId!,
-        userType: 'PROFESSIONAL',
-      );
-
-      _loading = false;
-      notifyListeners();
-    } catch (e) {
+      await loadRescheduleRequests();
+    } catch (e, stackTrace) {
+      LoggerService.error(
+          'Failed to respond to reschedule request', e, stackTrace);
       _error = e.toString();
-      _loading = false;
       notifyListeners();
       rethrow;
-    }
-  }
-
-  Future<void> loadRescheduleRequests({
-    required String userId,
-    required String userType,
-  }) async {
-    try {
-      _loading = true;
-      _error = null;
+    } finally {
+      _isLoading = false;
       notifyListeners();
-
-      final response = await _supabase
-          .from('reschedule_requests')
-          .select('*, job:jobs(id, homeowner_id, professional_id)')
-          .or('requested_by_id.eq.$userId,job->homeowner_id.eq.$userId,job->professional_id.eq.$userId');
-
-      _rescheduleRequests = response
-          .map<RescheduleRequest>((json) => RescheduleRequest.fromJson(json))
-          .toList();
-      _loading = false;
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      _loading = false;
-      notifyListeners();
-      rethrow;
     }
   }
 
@@ -385,48 +193,37 @@ class ScheduleProvider extends ChangeNotifier {
     required String newTime,
   }) async {
     try {
-      _loading = true;
+      _isLoading = true;
       _error = null;
       notifyListeners();
 
-      await _supabase.from('reschedule_requests').update({
+      await _client.from('reschedule_requests').update({
         'proposed_date': newDate.toIso8601String().split('T')[0],
         'proposed_time': newTime,
       }).eq('id', requestId);
 
-      await loadRescheduleRequests(
-        userId: _currentProfessionalId!,
-        userType: 'PROFESSIONAL',
-      );
-
-      _loading = false;
-      notifyListeners();
-    } catch (e) {
+      await loadRescheduleRequests();
+    } catch (e, stackTrace) {
+      LoggerService.error('Failed to propose new time', e, stackTrace);
       _error = e.toString();
-      _loading = false;
       notifyListeners();
       rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  bool get isLoading => _loading;
-
-  Future<void> deleteScheduleSlot(String slotId) async {
-    try {
-      _loading = true;
-      _error = null;
-      notifyListeners();
-
-      await _supabase.from('schedule_slots').delete().eq('id', slotId);
-      _scheduleSlots.removeWhere((slot) => slot.id == slotId);
-
-      _loading = false;
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      _loading = false;
-      notifyListeners();
-      rethrow;
+  Color getAppointmentColor(String status) {
+    switch (status) {
+      case Job.STATUS_SCHEDULED:
+        return const Color(0xFFFFE0E6); // Light pink
+      case Job.STATUS_STARTED:
+        return const Color(0xFFFFF3CD); // Light amber
+      case Job.STATUS_COMPLETED:
+        return const Color(0xFFD1E7DD); // Light green
+      default:
+        return const Color(0xFFE9ECEF); // Light gray
     }
   }
 }
