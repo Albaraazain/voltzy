@@ -1802,3 +1802,37 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 
 
 RESET ALL;
+
+-- Update job status constants
+CREATE TYPE job_status AS ENUM (
+  'awaiting_acceptance',
+  'scheduled',
+  'started',
+  'completed',
+  'cancelled'
+);
+
+-- Update job payment status constants
+CREATE TYPE job_payment_status AS ENUM (
+  'payment_pending',
+  'payment_processing',
+  'payment_completed',
+  'payment_failed',
+  'payment_refunded'
+);
+
+-- Update job verification status constants
+CREATE TYPE job_verification_status AS ENUM (
+  'verification_pending',
+  'verification_approved',
+  'verification_rejected'
+);
+
+-- Update jobs table to use the new types
+ALTER TABLE jobs
+  ALTER COLUMN status TYPE job_status USING status::job_status,
+  ALTER COLUMN payment_status TYPE job_payment_status USING payment_status::job_payment_status,
+  ALTER COLUMN verification_status TYPE job_verification_status USING verification_status::job_verification_status;
+
+-- Update the query to use the correct status
+AND jobs.status = 'awaiting_acceptance';
